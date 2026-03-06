@@ -19,32 +19,61 @@ export async function onRequest(context) {
   // Handle CORS preflight
   if (request.method === 'OPTIONS') {
     return new Response(null, {
-      headers: corsHeaders(request),
+      headers: corsHeaders(),
     });
   }
 
-  const resp = await fetch(upstream.toString(), {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Accept': 'application/json, text/plain, */*',
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Referer': 'https://ygoprodeck.com/',
-    },
-  });
+  try {
+    const resp = await fetch(upstream.toString(), {
+      method: 'GET',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
+      redirect: 'follow',
+    });
 
-  const body = await resp.text();
+    const body = await resp.text();
 
-  return new Response(body, {
-    status: resp.status,
-    headers: {
-      ...corsHeaders(request),
-      'Content-Type': 'application/json',
-      'Cache-Control': 'public, max-age=300', // cache 5 min
-    },
-  });
+    // If upstream returned an error, include debug info
+    if (!resp.ok) {
+      return new Response(JSON.stringify({
+        error: `Upstream returned ${resp.status}`,
+        upstreamUrl: upstream.toString(),
+        bodyPreview: body.substring(0, 500),
+      }), {
+        status: 502,
+        headers: {
+          ...corsHeaders(),
+          'Content-Type': 'application/json',
+        },
+      });
+    }
+
+    return new Response(body, {
+      status: 200,
+      headers: {
+        ...corsHeaders(),
+        'Content-Type': 'application/json',
+        'Cache-Control': 'public, max-age=300',
+      },
+    });
+  } catch (err) {
+    return new Response(JSON.stringify({
+      error: err.message,
+      stack: err.stack,
+    }), {
+      status: 502,
+      headers: {
+        ...corsHeaders(),
+        'Content-Type': 'application/json',
+      },
+    });
+  }
 }
 
-function corsHeaders(request) {
+function corsHeaders() {
   return {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, OPTIONS',
