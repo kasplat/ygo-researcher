@@ -22,18 +22,9 @@
 
     <!-- Import section -->
     <section id="importSection">
-      <div class="grid">
-        <div>
-          <label for="ydkFile">Import .ydk File</label>
-          <input type="file" id="ydkFile" accept=".ydk">
-        </div>
-        <div>
-          <label for="handSize">Hand Size</label>
-          <select id="handSize">
-            <option value="5" selected>5 cards (going first)</option>
-            <option value="6">6 cards (going second)</option>
-          </select>
-        </div>
+      <div>
+        <label for="ydkFile">Import .ydk File</label>
+        <input type="file" id="ydkFile" accept=".ydk">
       </div>
       <div id="dropZone" class="drop-zone">
         <p>Or drag & drop a .ydk file here</p>
@@ -66,13 +57,23 @@
     <!-- Results (hidden until combos defined) -->
     <section id="resultsSection" style="display:none">
       <h2>Results</h2>
-      <div class="results-display">
-        <div class="probability-main">
-          <div class="probability-value" id="mainProbability">—</div>
-          <div class="probability-label">chance of opening with a winning hand</div>
-          <small id="methodIndicator"></small>
+      <div class="results-dual">
+        <div class="results-display">
+          <h3>Going First (5 cards)</h3>
+          <div class="probability-main">
+            <div class="probability-value" id="mainProbability5">—</div>
+            <small id="methodIndicator5"></small>
+          </div>
+          <div id="perComboResults5"></div>
         </div>
-        <div id="perComboResults"></div>
+        <div class="results-display">
+          <h3>Going Second (6 cards)</h3>
+          <div class="probability-main">
+            <div class="probability-value" id="mainProbability6">—</div>
+            <small id="methodIndicator6"></small>
+          </div>
+          <div id="perComboResults6"></div>
+        </div>
       </div>
     </section>
   </main>
