@@ -271,3 +271,220 @@ details {
   opacity: 1;
   pointer-events: auto;
 }
+
+/* Cross-page nav */
+.page-nav {
+  display: flex;
+  gap: 1.5rem;
+  padding: 0.5rem 0;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid var(--pico-muted-border-color);
+}
+
+.page-nav a {
+  text-decoration: none;
+  color: var(--pico-muted-color);
+  font-size: 0.9rem;
+}
+
+.page-nav a.active {
+  color: var(--pico-primary);
+  font-weight: bold;
+}
+
+.page-nav a:hover {
+  color: var(--pico-color);
+}
+
+/* Drop zone */
+.drop-zone {
+  border: 2px dashed var(--pico-muted-border-color);
+  border-radius: var(--pico-border-radius);
+  padding: 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  margin-top: 0.5rem;
+}
+
+.drop-zone.drag-over {
+  border-color: var(--pico-primary);
+  background: rgba(76, 175, 80, 0.05);
+}
+
+.drop-zone p {
+  margin: 0;
+  opacity: 0.6;
+}
+
+/* Deck grid */
+.deck-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.deck-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.6rem;
+  background: var(--pico-card-background-color);
+  border-radius: var(--pico-border-radius);
+  font-size: 0.85rem;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: border-color 0.15s;
+}
+
+.deck-card:hover {
+  border-color: var(--pico-primary);
+}
+
+.deck-card .card-count {
+  background: var(--pico-primary);
+  color: var(--pico-primary-inverse);
+  border-radius: 50%;
+  width: 1.3rem;
+  height: 1.3rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+/* Combo builder */
+.combo-panel {
+  background: var(--pico-card-background-color);
+  border-radius: var(--pico-border-radius);
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--pico-muted-border-color);
+}
+
+.combo-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.combo-header input {
+  margin: 0;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.9rem;
+  max-width: 200px;
+}
+
+.combo-reqs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  min-height: 2rem;
+}
+
+.combo-req {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.5rem;
+  background: rgba(76, 175, 80, 0.15);
+  border-radius: var(--pico-border-radius);
+  font-size: 0.85rem;
+}
+
+.combo-req select {
+  margin: 0;
+  padding: 0.1rem 0.3rem;
+  font-size: 0.8rem;
+  width: 3rem;
+  height: auto;
+}
+
+.combo-req .remove-req {
+  cursor: pointer;
+  opacity: 0.6;
+  font-size: 1rem;
+  line-height: 1;
+  background: none;
+  border: none;
+  color: inherit;
+  padding: 0 0.2rem;
+  margin: 0;
+  width: auto;
+}
+
+.combo-req .remove-req:hover {
+  opacity: 1;
+}
+
+.combo-add-card {
+  margin: 0;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.8rem;
+  width: auto;
+  height: auto;
+}
+
+.remove-combo {
+  margin: 0;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.8rem;
+  width: auto;
+  height: auto;
+}
+
+/* Probability display */
+.results-display {
+  text-align: center;
+  padding: 1.5rem;
+  background: var(--pico-card-background-color);
+  border-radius: var(--pico-border-radius);
+}
+
+.probability-main {
+  margin-bottom: 1.5rem;
+}
+
+.probability-value {
+  font-size: 3rem;
+  font-weight: bold;
+  color: var(--pico-primary);
+}
+
+.probability-label {
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
+
+#methodIndicator {
+  opacity: 0.5;
+  font-size: 0.8rem;
+}
+
+.per-combo-table {
+  text-align: left;
+  margin: 0 auto;
+  max-width: 500px;
+}
+
+.per-combo-table td {
+  padding: 0.3rem 0.8rem;
+}
+
+.per-combo-table .combo-prob {
+  font-weight: bold;
+  text-align: right;
+}
+
+/* Import warnings */
+#importWarnings {
+  padding: 0.5rem 1rem;
+  background: rgba(255, 193, 7, 0.1);
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  border-radius: var(--pico-border-radius);
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+}

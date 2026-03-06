@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YGO Hand Calculator</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main class="container">
+    <!-- Cross-page nav -->
+    <nav class="page-nav">
+      <a href="index.html">Meta Analyzer</a>
+      <a href="hands.html" class="active">Hand Calculator</a>
+    </nav>
+
+    <header>
+      <h1>Hand Probability Calculator</h1>
+      <p>Import a .ydk deck file, define winning combos, and see your opening hand odds</p>
+    </header>
+
+    <!-- Import section -->
+    <section id="importSection">
+      <div class="grid">
+        <div>
+          <label for="ydkFile">Import .ydk File</label>
+          <input type="file" id="ydkFile" accept=".ydk">
+        </div>
+        <div>
+          <label for="handSize">Hand Size</label>
+          <select id="handSize">
+            <option value="5" selected>5 cards (going first)</option>
+            <option value="6">6 cards (going second)</option>
+          </select>
+        </div>
+      </div>
+      <div id="dropZone" class="drop-zone">
+        <p>Or drag & drop a .ydk file here</p>
+      </div>
+      <div id="importWarnings" style="display:none"></div>
+    </section>
+
+    <!-- Deck display (hidden until import) -->
+    <section id="deckDisplay" style="display:none">
+      <h2>Your Deck <small id="deckCount"></small></h2>
+      <div id="deckGrid" class="deck-grid"></div>
+    </section>
+
+    <!-- Combo builder (hidden until import) -->
+    <section id="comboBuilder" style="display:none">
+      <h2>Define Winning Combos</h2>
+      <p class="info-text">A combo succeeds if ALL its cards are in your opening hand. You win if ANY combo succeeds.</p>
+      <div id="comboList"></div>
+      <button id="addComboBtn" class="outline">+ Add Combo</button>
+    </section>
+
+    <!-- Results (hidden until combos defined) -->
+    <section id="resultsSection" style="display:none">
+      <h2>Results</h2>
+      <div class="results-display">
+        <div class="probability-main">
+          <div class="probability-value" id="mainProbability">—</div>
+          <div class="probability-label">chance of opening with a winning hand</div>
+          <small id="methodIndicator"></small>
+        </div>
+        <div id="perComboResults"></div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="js/handsApp.js"></script>
+</body>
+</html>
