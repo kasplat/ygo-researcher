@@ -7,10 +7,11 @@ import { calculate } from './probability.js';
 
 let cardLookup = null;
 let deckGroups = [];    // [{ id, count, name, type }]
-let combos = [];        // [{ name, requirements: [{ groupIndex, min }] }]
+let pools = [];          // [{ id, name, memberGroupIndices: number[] }]
+let poolIdCounter = 0;
+let combos = [];         // [{ id, name, requirements: Requirement[] }]
 let comboIdCounter = 0;
 let handSize = 5;
-let onRecalc = null;    // callback
 
 function escapeHtml(text) {
   const div = document.createElement('div');
@@ -52,6 +53,7 @@ export function renderDeck(parsedDeck) {
 
   document.getElementById('deckCount').textContent = `(${parsedDeck.main.length} cards)`;
   document.getElementById('deckDisplay').style.display = '';
+  document.getElementById('poolBuilder').style.display = '';
   document.getElementById('comboBuilder').style.display = '';
 
   // Click a card in deck grid -> add to last combo (or create one)
@@ -60,8 +62,14 @@ export function renderDeck(parsedDeck) {
     if (!card) return;
     const groupIndex = parseInt(card.dataset.groupIndex);
     if (combos.length === 0) addCombo();
-    addRequirementToCombo(combos[combos.length - 1].id, groupIndex);
+    addRequirementToCombo(combos[combos.length - 1].id, { type: 'card', groupIndex });
   });
+
+  // Setup pool builder
+  document.getElementById('addPoolBtn').addEventListener('click', () => addPool());
+  pools = [];
+  poolIdCounter = 0;
+  document.getElementById('poolList').innerHTML = '';
 
   // Setup combo builder
   document.getElementById('addComboBtn').addEventListener('click', () => addCombo());
@@ -69,6 +77,96 @@ export function renderDeck(parsedDeck) {
   comboIdCounter = 0;
   document.getElementById('comboList').innerHTML = '';
   addCombo(); // Start with one empty combo
+}
+
+// --- Pool Builder ---
+
+function addPool() {
+  const id = poolIdCounter++;
+  const pool = { id, name: `Pool ${id + 1}`, memberGroupIndices: [] };
+  pools.push(pool);
+  renderPool(pool);
+  rerenderAllCombos();
+  return pool;
+}
+
+function renderPool(pool) {
+  const list = document.getElementById('poolList');
+  let panel = document.getElementById(`pool-${pool.id}`);
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.className = 'pool-panel';
+    panel.id = `pool-${pool.id}`;
+    list.appendChild(panel);
+  }
+
+  panel.innerHTML = `
+    <div class="pool-header">
+      <input type="text" value="${escapeHtml(pool.name)}" data-pool-id="${pool.id}" class="pool-name-input">
+      <button class="remove-pool outline secondary" data-pool-id="${pool.id}">Remove</button>
+    </div>
+    <div class="pool-members" id="pool-members-${pool.id}">
+      ${pool.memberGroupIndices.map((gi, mi) => {
+        const g = deckGroups[gi];
+        return `
+          <span class="pool-member">
+            ${escapeHtml(g.name)} (${g.count}x)
+            <button class="remove-member" data-pool-id="${pool.id}" data-member-index="${mi}">&times;</button>
+          </span>`;
+      }).join('')}
+    </div>
+    <select class="pool-add-card" data-pool-id="${pool.id}">
+      <option value="">+ Add card...</option>
+      ${deckGroups.map((g, i) =>
+        pool.memberGroupIndices.includes(i) ? '' :
+        `<option value="${i}">${escapeHtml(g.name)} (${g.count}x)</option>`
+      ).join('')}
+    </select>
+  `;
+
+  // Wire events
+  panel.querySelector('.pool-name-input').addEventListener('input', (e) => {
+    pool.name = e.target.value;
+    rerenderAllCombos();
+    recalculate();
+  });
+
+  panel.querySelector('.remove-pool').addEventListener('click', () => {
+    // Remove pool requirements from all combos
+    for (const combo of combos) {
+      combo.requirements = combo.requirements.filter(r => !(r.type === 'pool' && r.poolId === pool.id));
+    }
+    pools = pools.filter(p => p.id !== pool.id);
+    panel.remove();
+    rerenderAllCombos();
+    recalculate();
+  });
+
+  panel.querySelector('.pool-add-card').addEventListener('change', (e) => {
+    if (e.target.value === '') return;
+    const gi = parseInt(e.target.value);
+    if (!pool.memberGroupIndices.includes(gi)) {
+      pool.memberGroupIndices.push(gi);
+      renderPool(pool);
+      rerenderAllCombos();
+      recalculate();
+    }
+    e.target.value = '';
+  });
+
+  panel.querySelectorAll('.remove-member').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const mi = parseInt(e.target.dataset.memberIndex);
+      pool.memberGroupIndices.splice(mi, 1);
+      renderPool(pool);
+      rerenderAllCombos();
+      recalculate();
+    });
+  });
+}
+
+function getPoolTotalCount(pool) {
+  return pool.memberGroupIndices.reduce((s, gi) => s + deckGroups[gi].count, 0);
 }
 
 // --- Combo Builder ---
@@ -81,6 +179,10 @@ function addCombo() {
   return combo;
 }
 
+function rerenderAllCombos() {
+  for (const combo of combos) renderCombo(combo);
+}
+
 function renderCombo(combo) {
   const list = document.getElementById('comboList');
   let panel = document.getElementById(`combo-${combo.id}`);
@@ -91,6 +193,8 @@ function renderCombo(combo) {
     list.appendChild(panel);
   }
 
+  const activePools = pools.filter(p => p.memberGroupIndices.length > 0);
+
   panel.innerHTML = `
     <div class="combo-header">
       <input type="text" value="${escapeHtml(combo.name)}" data-combo-id="${combo.id}" class="combo-name-input">
@@ -98,6 +202,22 @@ function renderCombo(combo) {
     </div>
     <div class="combo-reqs" id="combo-reqs-${combo.id}">
       ${combo.requirements.map((req, ri) => {
+        if (req.type === 'pool') {
+          const pool = pools.find(p => p.id === req.poolId);
+          if (!pool) return '';
+          const totalCount = getPoolTotalCount(pool);
+          return `
+            <span class="combo-req pool-req">
+              <span class="pool-label">Pool</span>
+              ${escapeHtml(pool.name)}
+              <select data-combo-id="${combo.id}" data-req-index="${ri}" class="min-select">
+                ${Array.from({ length: totalCount }, (_, i) => i + 1).map(n =>
+                  `<option value="${n}" ${n === req.min ? 'selected' : ''}>${n}+</option>`
+                ).join('')}
+              </select>
+              <button class="remove-req" data-combo-id="${combo.id}" data-req-index="${ri}">&times;</button>
+            </span>`;
+        }
         const g = deckGroups[req.groupIndex];
         return `
           <span class="combo-req">
@@ -112,8 +232,15 @@ function renderCombo(combo) {
       }).join('')}
     </div>
     <select class="combo-add-card" data-combo-id="${combo.id}">
-      <option value="">+ Add card...</option>
-      ${deckGroups.map((g, i) => `<option value="${i}">${escapeHtml(g.name)} (${g.count}x)</option>`).join('')}
+      <option value="">+ Add card or pool...</option>
+      ${activePools.length > 0 ? `
+        <optgroup label="Pools">
+          ${activePools.map(p => `<option value="pool:${p.id}">${escapeHtml(p.name)} (${getPoolTotalCount(p)} cards)</option>`).join('')}
+        </optgroup>
+      ` : ''}
+      <optgroup label="Cards">
+        ${deckGroups.map((g, i) => `<option value="${i}">${escapeHtml(g.name)} (${g.count}x)</option>`).join('')}
+      </optgroup>
     </select>
   `;
 
@@ -131,7 +258,13 @@ function renderCombo(combo) {
 
   panel.querySelector('.combo-add-card').addEventListener('change', (e) => {
     if (e.target.value === '') return;
-    addRequirementToCombo(combo.id, parseInt(e.target.value));
+    const val = e.target.value;
+    if (val.startsWith('pool:')) {
+      const poolId = parseInt(val.split(':')[1]);
+      addRequirementToCombo(combo.id, { type: 'pool', poolId });
+    } else {
+      addRequirementToCombo(combo.id, { type: 'card', groupIndex: parseInt(val) });
+    }
     e.target.value = '';
   });
 
@@ -153,14 +286,19 @@ function renderCombo(combo) {
   });
 }
 
-function addRequirementToCombo(comboId, groupIndex) {
+function addRequirementToCombo(comboId, req) {
   const combo = combos.find(c => c.id === comboId);
   if (!combo) return;
 
-  // Don't add duplicate group to same combo
-  if (combo.requirements.some(r => r.groupIndex === groupIndex)) return;
+  // Don't add duplicate
+  if (req.type === 'pool') {
+    if (combo.requirements.some(r => r.type === 'pool' && r.poolId === req.poolId)) return;
+    combo.requirements.push({ type: 'pool', poolId: req.poolId, min: 1 });
+  } else {
+    if (combo.requirements.some(r => r.type !== 'pool' && r.groupIndex === req.groupIndex)) return;
+    combo.requirements.push({ type: 'card', groupIndex: req.groupIndex, min: 1 });
+  }
 
-  combo.requirements.push({ groupIndex, min: 1 });
   renderCombo(combo);
   recalculate();
 }
@@ -187,14 +325,22 @@ function doRecalculate() {
   const deckSize = deckGroups.reduce((s, g) => s + g.count, 0);
   const groups = deckGroups.map(g => ({ name: g.name, count: g.count }));
 
+  // Build pools data for the calculator
+  const activePools = pools.filter(p => p.memberGroupIndices.length > 0);
+
   try {
     const result = calculate({
       deckSize,
       handSize,
       groups,
+      pools: activePools.map(p => ({
+        id: p.id,
+        name: p.name,
+        memberGroupIndices: [...p.memberGroupIndices],
+      })),
       combos: activeCombos.map(c => ({
         name: c.name,
-        requirements: c.requirements,
+        requirements: c.requirements.map(r => ({ ...r })),
       })),
     });
 

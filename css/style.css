@@ -354,6 +354,99 @@ details {
   font-weight: bold;
 }
 
+/* Pool builder */
+.pool-panel {
+  background: var(--pico-card-background-color);
+  border-radius: var(--pico-border-radius);
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border: 1px solid rgba(66, 133, 244, 0.4);
+}
+
+.pool-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.pool-header input {
+  margin: 0;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.9rem;
+  max-width: 200px;
+}
+
+.pool-members {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  min-height: 2rem;
+}
+
+.pool-member {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.5rem;
+  background: rgba(66, 133, 244, 0.15);
+  border-radius: var(--pico-border-radius);
+  font-size: 0.85rem;
+}
+
+.pool-member .remove-member {
+  cursor: pointer;
+  opacity: 0.6;
+  font-size: 1rem;
+  line-height: 1;
+  background: none;
+  border: none;
+  color: inherit;
+  padding: 0 0.2rem;
+  margin: 0;
+  width: auto;
+}
+
+.pool-member .remove-member:hover {
+  opacity: 1;
+}
+
+.pool-add-card {
+  margin: 0;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.8rem;
+  width: auto;
+  height: auto;
+}
+
+.remove-pool {
+  margin: 0;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.8rem;
+  width: auto;
+  height: auto;
+}
+
+/* Pool-based requirement in combos */
+.combo-req.pool-req {
+  background: rgba(66, 133, 244, 0.15);
+}
+
+.pool-label {
+  font-size: 0.7rem;
+  opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* Overlap warning */
+.overlap-warning {
+  color: rgba(255, 193, 7, 0.9);
+  font-size: 0.8rem;
+  margin-top: 0.3rem;
+}
+
 /* Combo builder */
 .combo-panel {
   background: var(--pico-card-background-color);
