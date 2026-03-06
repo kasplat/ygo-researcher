@@ -104,7 +104,7 @@
 .sticky-header thead {
   position: sticky;
   top: 0;
-  z-index: 1;
+  z-index: 2;
   background: var(--pico-card-background-color);
 }
 
@@ -183,4 +183,91 @@
   font-size: 0.85rem;
   opacity: 0.6;
   margin-bottom: 0.5rem;
+}
+
+/* Section nav */
+.section-nav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  gap: 0;
+  background: var(--pico-background-color);
+  border-bottom: 1px solid var(--pico-muted-border-color);
+  padding: 0;
+  margin: 0 0 1.5rem 0;
+}
+
+.section-nav .nav-link {
+  padding: 0.6rem 1rem;
+  font-size: 0.85rem;
+  text-decoration: none;
+  color: var(--pico-muted-color);
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.section-nav .nav-link:hover {
+  color: var(--pico-color);
+}
+
+.section-nav .nav-link.active {
+  color: var(--pico-primary);
+  border-bottom-color: var(--pico-primary);
+}
+
+/* Collapsible sections */
+details > summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+details > summary::-webkit-details-marker {
+  display: none;
+}
+
+details > summary h2 {
+  display: inline;
+  margin: 0;
+}
+
+details > summary h2::before {
+  content: '\25BC';
+  font-size: 0.7em;
+  margin-right: 0.5rem;
+  opacity: 0.5;
+  display: inline-block;
+  transition: transform 0.15s;
+}
+
+details:not([open]) > summary h2::before {
+  transform: rotate(-90deg);
+}
+
+details {
+  margin-bottom: 1.5rem;
+}
+
+/* Back to top button */
+.back-to-top {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  font-size: 1.4rem;
+  line-height: 1;
+  padding: 0;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  z-index: 20;
+}
+
+.back-to-top.visible {
+  opacity: 1;
+  pointer-events: auto;
 }

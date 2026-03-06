@@ -81,6 +81,7 @@ export function showLoading() {
   document.getElementById('loadingBar').style.display = '';
   document.getElementById('loadingStatus').style.display = '';
   document.getElementById('results').style.display = 'none';
+  document.getElementById('sectionNav').style.display = 'none';
   document.getElementById('errorDisplay').style.display = 'none';
   document.getElementById('analyzeBtn').setAttribute('aria-busy', 'true');
   document.getElementById('analyzeBtn').disabled = true;
@@ -120,12 +121,15 @@ export function renderResults(results, decks, cardLookup) {
   currentCardLookup = cardLookup;
 
   document.getElementById('results').style.display = '';
+  document.getElementById('sectionNav').style.display = '';
 
   renderSummary(results);
   renderArchetypeTable(results);
   renderGlobalCards(results);
   renderArchetypeSelector(results);
   setupDrilldownClose();
+  setupSectionNav();
+  setupBackToTop();
 }
 
 // --- Summary ---
@@ -193,7 +197,9 @@ function renderArchetypeTable(results) {
     const selector = document.getElementById('archetypeSelector');
     selector.value = archName;
     selector.dispatchEvent(new Event('change'));
-    document.getElementById('archetypeDetails').scrollIntoView({ behavior: 'smooth' });
+    const details = document.getElementById('archetypeDetails');
+    if (!details.open) details.open = true;
+    details.scrollIntoView({ behavior: 'smooth' });
   });
 }
 
@@ -494,6 +500,71 @@ function openCardDrilldown(cardId) {
   document.getElementById('drilldownTable').querySelector('tbody').innerHTML = rows;
 
   dialog.showModal();
+}
+
+// --- Section nav (IntersectionObserver) ---
+
+let navObserver = null;
+
+function setupSectionNav() {
+  const nav = document.getElementById('sectionNav');
+  const links = nav.querySelectorAll('.nav-link');
+  const sectionIds = [...links].map(l => l.dataset.section);
+
+  // Clean up previous observer if re-running analysis
+  if (navObserver) navObserver.disconnect();
+
+  // Track which sections are visible
+  const visible = new Set();
+
+  navObserver = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (entry.isIntersecting) {
+        visible.add(entry.target.id);
+      } else {
+        visible.delete(entry.target.id);
+      }
+    }
+    // Highlight the first visible section in DOM order
+    for (const id of sectionIds) {
+      if (visible.has(id)) {
+        links.forEach(l => l.classList.toggle('active', l.dataset.section === id));
+        break;
+      }
+    }
+  }, { rootMargin: '-60px 0px -70% 0px' });
+
+  for (const id of sectionIds) {
+    const el = document.getElementById(id);
+    if (el) navObserver.observe(el);
+  }
+
+  // Smooth scroll on click
+  nav.addEventListener('click', (e) => {
+    const link = e.target.closest('.nav-link');
+    if (!link) return;
+    e.preventDefault();
+    const target = document.getElementById(link.dataset.section);
+    if (target) {
+      // If it's a collapsed <details>, open it first
+      if (target.tagName === 'DETAILS' && !target.open) target.open = true;
+      target.scrollIntoView({ behavior: 'smooth' });
+    }
+  });
+}
+
+// --- Back to top button ---
+
+function setupBackToTop() {
+  const btn = document.getElementById('backToTop');
+
+  window.addEventListener('scroll', () => {
+    btn.classList.toggle('visible', window.scrollY > 400);
+  }, { passive: true });
+
+  btn.addEventListener('click', () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
 }
 
 // --- Global click delegation for card links ---

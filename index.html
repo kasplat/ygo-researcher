@@ -37,6 +37,14 @@
     <!-- Error display -->
     <div id="errorDisplay" style="display:none" role="alert"></div>
 
+    <!-- Section nav (hidden until results load) -->
+    <nav id="sectionNav" class="section-nav" style="display:none">
+      <a href="#summary" class="nav-link active" data-section="summary">Summary</a>
+      <a href="#archetypeBreakdown" class="nav-link" data-section="archetypeBreakdown">Archetypes</a>
+      <a href="#globalCards" class="nav-link" data-section="globalCards">Global Cards</a>
+      <a href="#archetypeDetails" class="nav-link" data-section="archetypeDetails">Deep Dive</a>
+    </nav>
+
     <!-- Results -->
     <section id="results" style="display:none">
 
@@ -44,8 +52,8 @@
       <div id="summary" class="summary-bar"></div>
 
       <!-- Archetype Representation -->
-      <section id="archetypeBreakdown">
-        <h2>Archetype Representation</h2>
+      <details id="archetypeBreakdown" open>
+        <summary><h2>Archetype Representation</h2></summary>
         <div class="table-wrapper">
           <table id="archetypeTable" class="sortable-table">
             <thead>
@@ -59,11 +67,11 @@
             <tbody></tbody>
           </table>
         </div>
-      </section>
+      </details>
 
       <!-- Global Card Frequency -->
-      <section id="globalCards">
-        <h2>Most Played Cards</h2>
+      <details id="globalCards" open>
+        <summary><h2>Most Played Cards</h2></summary>
         <div role="group" id="globalCardTabs">
           <button class="tab-btn active" data-tab="main">Main Deck</button>
           <button class="tab-btn" data-tab="extra">Extra Deck</button>
@@ -84,18 +92,21 @@
             <tbody></tbody>
           </table>
         </div>
-      </section>
+      </details>
 
       <!-- Archetype Deep Dive -->
-      <section id="archetypeDetails">
-        <h2>Archetype Deep Dive</h2>
+      <details id="archetypeDetails" open>
+        <summary><h2>Archetype Deep Dive</h2></summary>
         <select id="archetypeSelector">
           <option value="">Select an archetype...</option>
         </select>
         <div id="archetypeDetail"></div>
-      </section>
+      </details>
 
     </section>
+
+    <!-- Back to top -->
+    <button id="backToTop" class="back-to-top" aria-label="Back to top">&uarr;</button>
 
     <!-- Card Drill-down Dialog -->
     <dialog id="cardDrilldown">
