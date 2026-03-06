@@ -47,10 +47,18 @@
       <div id="deckGrid" class="deck-grid"></div>
     </section>
 
+    <!-- Pool builder (hidden until import) -->
+    <section id="poolBuilder" style="display:none">
+      <h2>Card Pools <small class="info-text">(optional — group cards for OR logic)</small></h2>
+      <p class="info-text">Group cards that serve the same role. Use pools in combos to mean "any of these cards".</p>
+      <div id="poolList"></div>
+      <button id="addPoolBtn" class="outline">+ Create Pool</button>
+    </section>
+
     <!-- Combo builder (hidden until import) -->
     <section id="comboBuilder" style="display:none">
       <h2>Define Winning Combos</h2>
-      <p class="info-text">A combo succeeds if ALL its cards are in your opening hand. You win if ANY combo succeeds.</p>
+      <p class="info-text">A combo succeeds if ALL its requirements are in your opening hand. You win if ANY combo succeeds. Use pools for "any of these" requirements.</p>
       <div id="comboList"></div>
       <button id="addComboBtn" class="outline">+ Add Combo</button>
     </section>

@@ -4,7 +4,10 @@
  *
  * Data model:
  *   groups: [{ name, count }]           — card groups with copy counts
- *   combos: [{ name, requirements: [{ groupIndex, min }] }]
+ *   combos: [{ name, requirements: [Requirement] }]
+ *     Requirement = { type: 'card', groupIndex, min }
+ *                 | { type: 'pool', poolId, min }
+ *   pools: [{ id, name, memberGroupIndices: number[] }]  (optional)
  *   deckSize: number (typically 40)
  *   handSize: number (5 going first, 6 going second)
  */
@@ -127,12 +130,117 @@ function popcount(n) {
   return count;
 }
 
+// --- Pool resolution ---
+
+/**
+ * Resolve pool-based requirements into flat group-based requirements.
+ *
+ * For non-overlapping pools, creates virtual groups (count = sum of members)
+ * and rewrites pool requirements to reference those virtual groups.
+ *
+ * Returns { groups, combos, hasOverlap }
+ */
+function resolvePoolRequirements(groups, combos, pools) {
+  if (!pools || pools.length === 0) {
+    return { groups, combos, hasOverlap: false };
+  }
+
+  const poolMap = new Map();
+  for (const pool of pools) {
+    poolMap.set(pool.id, pool);
+  }
+
+  // Check for overlap: a groupIndex used in multiple pools across any combo,
+  // or a groupIndex used both as a card req and inside a pool req in the same combo
+  let hasOverlap = false;
+
+  for (const combo of combos) {
+    const groupUsage = new Map(); // groupIndex -> Set of sources ('card' | poolId)
+
+    for (const req of combo.requirements) {
+      if (req.type === 'pool') {
+        const pool = poolMap.get(req.poolId);
+        if (!pool) continue;
+        for (const gi of pool.memberGroupIndices) {
+          if (!groupUsage.has(gi)) groupUsage.set(gi, new Set());
+          groupUsage.get(gi).add(`pool:${req.poolId}`);
+        }
+      } else {
+        const gi = req.groupIndex;
+        if (!groupUsage.has(gi)) groupUsage.set(gi, new Set());
+        groupUsage.get(gi).add('card');
+      }
+    }
+
+    for (const sources of groupUsage.values()) {
+      if (sources.size > 1) { hasOverlap = true; break; }
+    }
+    if (hasOverlap) break;
+  }
+
+  if (hasOverlap) {
+    return { groups, combos, hasOverlap: true };
+  }
+
+  // No overlap: create virtual groups for each pool used
+  const usedPoolIds = new Set();
+  for (const combo of combos) {
+    for (const req of combo.requirements) {
+      if (req.type === 'pool') usedPoolIds.add(req.poolId);
+    }
+  }
+
+  const extendedGroups = groups.map(g => ({ ...g }));
+  const poolGroupIndex = new Map(); // poolId -> virtual group index
+
+  for (const poolId of usedPoolIds) {
+    const pool = poolMap.get(poolId);
+    if (!pool || pool.memberGroupIndices.length === 0) continue;
+    const count = pool.memberGroupIndices.reduce((s, gi) => s + groups[gi].count, 0);
+    const idx = extendedGroups.length;
+    extendedGroups.push({ name: pool.name, count });
+    poolGroupIndex.set(poolId, idx);
+  }
+
+  // Rewrite combos: pool requirements -> groupIndex pointing at virtual groups
+  const resolvedCombos = combos.map(combo => ({
+    name: combo.name,
+    requirements: combo.requirements.map(req => {
+      if (req.type === 'pool') {
+        const gi = poolGroupIndex.get(req.poolId);
+        if (gi === undefined) return { groupIndex: -1, min: req.min }; // empty pool
+        return { groupIndex: gi, min: req.min };
+      }
+      return { groupIndex: req.groupIndex, min: req.min };
+    }).filter(r => r.groupIndex >= 0),
+  }));
+
+  return { groups: extendedGroups, combos: resolvedCombos, hasOverlap: false };
+}
+
 // --- Monte Carlo simulation ---
 
-function simulate(deckArray, combos, groups, handSize, iterations) {
+function simulate(deckArray, combos, groups, handSize, iterations, pools) {
   const deck = [...deckArray];
   const n = deck.length;
   let successes = 0;
+
+  // Build a pool lookup for pool requirements
+  const poolMap = new Map();
+  if (pools) {
+    for (const pool of pools) poolMap.set(pool.id, pool);
+  }
+
+  // Pre-compute matchSets for each requirement in each combo
+  const comboMatchSets = combos.map(combo =>
+    combo.requirements.map(req => {
+      if (req.type === 'pool') {
+        const pool = poolMap.get(req.poolId);
+        return { matchSet: new Set(pool ? pool.memberGroupIndices : []), min: req.min };
+      }
+      return { matchSet: new Set([req.groupIndex]), min: req.min };
+    })
+  );
 
   for (let iter = 0; iter < iterations; iter++) {
     // Fisher-Yates shuffle (only need handSize elements)
@@ -144,17 +252,15 @@ function simulate(deckArray, combos, groups, handSize, iterations) {
     // Check hand (last handSize elements)
     const hand = deck.slice(n - handSize);
 
-    // Count cards per group in hand
     let anyComboSatisfied = false;
-    for (const combo of combos) {
+    for (let ci = 0; ci < combos.length; ci++) {
       let comboOk = true;
-      for (const req of combo.requirements) {
-        const group = groups[req.groupIndex];
+      for (const { matchSet, min } of comboMatchSets[ci]) {
         let count = 0;
         for (const cardIdx of hand) {
-          if (cardIdx === req.groupIndex) count++;
+          if (matchSet.has(cardIdx)) count++;
         }
-        if (count < req.min) { comboOk = false; break; }
+        if (count < min) { comboOk = false; break; }
       }
       if (comboOk) { anyComboSatisfied = true; break; }
     }
@@ -210,7 +316,7 @@ const SIM_ITERATIONS = 200_000;
  * Returns { probability, method, perCombo: [{ name, probability }] }
  */
 export function calculate(input) {
-  const { groups, combos, deckSize, handSize } = input;
+  const { groups, combos, deckSize, handSize, pools } = input;
   ensureBinomialTable(deckSize);
 
   // Validate
@@ -219,24 +325,45 @@ export function calculate(input) {
     throw new Error(`Group cards (${totalGroupCards}) exceed deck size (${deckSize})`);
   }
 
-  const cost = estimateCost(groups, combos);
+  // Resolve pool requirements into flat groups
+  const resolved = resolvePoolRequirements(groups, combos, pools);
+  const forceSimulation = resolved.hasOverlap;
+  const resolvedGroups = resolved.groups;
+  const resolvedCombos = resolved.combos;
+
+  // Ensure binomial table covers extended groups
+  if (resolvedGroups.length > groups.length) {
+    const maxCount = resolvedGroups.reduce((mx, g) => Math.max(mx, g.count), deckSize);
+    ensureBinomialTable(Math.max(deckSize, maxCount));
+  }
+
+  const cost = forceSimulation ? Infinity : estimateCost(resolvedGroups, resolvedCombos);
   const useExact = cost < EXACT_THRESHOLD;
 
   let probability;
   let method;
 
   if (useExact) {
-    probability = exactMultiCombo(groups, combos, deckSize, handSize);
+    probability = exactMultiCombo(resolvedGroups, resolvedCombos, deckSize, handSize);
     method = 'exact';
   } else {
     const deckArray = buildDeckArray(groups, deckSize);
-    probability = simulate(deckArray, combos, groups, handSize, SIM_ITERATIONS);
-    method = `simulated (~${(SIM_ITERATIONS / 1000).toFixed(0)}K trials)`;
+    probability = simulate(deckArray, combos, groups, handSize, SIM_ITERATIONS, pools);
+    method = forceSimulation
+      ? `simulated — overlapping pools (~${(SIM_ITERATIONS / 1000).toFixed(0)}K trials)`
+      : `simulated (~${(SIM_ITERATIONS / 1000).toFixed(0)}K trials)`;
   }
 
-  // Per-combo individual probabilities (always exact if possible)
+  // Per-combo individual probabilities (resolve each individually)
   const perCombo = combos.map(combo => {
-    const p = exactSingleCombo(groups, combo.requirements, deckSize, handSize);
+    const perRes = resolvePoolRequirements(groups, [combo], pools);
+    if (perRes.hasOverlap) {
+      // Overlapping pools within this combo — simulate individually
+      const deckArray = buildDeckArray(groups, deckSize);
+      const p = simulate(deckArray, [combo], groups, handSize, SIM_ITERATIONS, pools);
+      return { name: combo.name, probability: p };
+    }
+    const p = exactSingleCombo(perRes.groups, perRes.combos[0].requirements, deckSize, handSize);
     return { name: combo.name, probability: p };
   });
 
@@ -248,4 +375,4 @@ export function calculate(input) {
 }
 
 // Export internals for testing
-export { exactSingleCombo, exactMultiCombo, ensureBinomialTable, C, simulate, buildDeckArray };
+export { exactSingleCombo, exactMultiCombo, ensureBinomialTable, C, simulate, buildDeckArray, resolvePoolRequirements };
