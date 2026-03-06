@@ -1,0 +1,186 @@
+/* Summary bar */
+.summary-bar {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+  padding: 1rem;
+  background: var(--pico-card-background-color);
+  border-radius: var(--pico-border-radius);
+  margin-bottom: 1.5rem;
+}
+
+.summary-stat {
+  text-align: center;
+}
+
+.summary-stat .value {
+  font-size: 1.8rem;
+  font-weight: bold;
+  color: var(--pico-primary);
+}
+
+.summary-stat .label {
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
+/* Table wrappers */
+.table-wrapper {
+  overflow-x: auto;
+}
+
+/* Sortable table headers */
+.sortable-table th[data-sort] {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.sortable-table th[data-sort]::after {
+  content: ' \2195';
+  opacity: 0.3;
+  font-size: 0.8em;
+}
+
+.sortable-table th[data-sort].sort-asc::after {
+  content: ' \2191';
+  opacity: 1;
+}
+
+.sortable-table th[data-sort].sort-desc::after {
+  content: ' \2193';
+  opacity: 1;
+}
+
+/* Inline bar chart */
+.bar-cell {
+  position: relative;
+  min-width: 120px;
+}
+
+.bar-fill {
+  display: inline-block;
+  height: 1.2em;
+  background: var(--pico-primary);
+  border-radius: 2px;
+  opacity: 0.6;
+  vertical-align: middle;
+  margin-right: 0.5em;
+  min-width: 2px;
+}
+
+/* Frequency color coding */
+.freq-high {
+  background-color: rgba(76, 175, 80, 0.15);
+}
+
+.freq-med {
+  background-color: rgba(255, 193, 7, 0.15);
+}
+
+.freq-low {
+  background-color: rgba(244, 67, 54, 0.1);
+}
+
+/* Clickable card names */
+.card-link {
+  cursor: pointer;
+  text-decoration: underline;
+  color: var(--pico-primary);
+}
+
+.card-link:hover {
+  opacity: 0.8;
+}
+
+/* Compact table for tech cards */
+.compact-table td,
+.compact-table th {
+  padding: 0.4rem 0.6rem;
+  font-size: 0.9rem;
+}
+
+/* Sticky header for scrollable tables */
+.sticky-header thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--pico-card-background-color);
+}
+
+/* Tab buttons */
+#globalCardTabs {
+  margin-bottom: 1rem;
+}
+
+.tab-btn {
+  margin: 0;
+}
+
+.tab-btn:not(.active) {
+  --pico-background-color: transparent;
+  --pico-color: var(--pico-primary);
+  border: 1px solid var(--pico-primary);
+}
+
+/* Archetype name in table - clickable */
+.archetype-link {
+  cursor: pointer;
+  color: var(--pico-primary);
+  text-decoration: underline;
+}
+
+.archetype-link:hover {
+  opacity: 0.8;
+}
+
+/* Filter input for tech cards */
+.filter-input {
+  margin-bottom: 0.5rem;
+  max-width: 300px;
+}
+
+/* Deep dive sub-sections */
+.deep-dive-section {
+  margin-top: 1.5rem;
+}
+
+.deep-dive-section h4 {
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid var(--pico-muted-border-color);
+  padding-bottom: 0.3rem;
+}
+
+/* Dialog tweaks */
+#cardDrilldown article {
+  max-width: 900px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+#drilldownCardInfo {
+  opacity: 0.7;
+}
+
+/* Loading state */
+#loadingStatus {
+  display: block;
+  margin-top: 0.5rem;
+  opacity: 0.7;
+}
+
+/* Error display */
+#errorDisplay {
+  padding: 1rem;
+  background: rgba(244, 67, 54, 0.1);
+  border: 1px solid rgba(244, 67, 54, 0.3);
+  border-radius: var(--pico-border-radius);
+  margin-bottom: 1rem;
+}
+
+/* Small info text */
+.info-text {
+  font-size: 0.85rem;
+  opacity: 0.6;
+  margin-bottom: 0.5rem;
+}
