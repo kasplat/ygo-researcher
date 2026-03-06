@@ -11,7 +11,6 @@ let pools = [];          // [{ id, name, memberGroupIndices: number[] }]
 let poolIdCounter = 0;
 let combos = [];         // [{ id, name, requirements: Requirement[] }]
 let comboIdCounter = 0;
-let handSize = 5;
 
 function escapeHtml(text) {
   const div = document.createElement('div');
@@ -23,10 +22,6 @@ function escapeHtml(text) {
 
 export function init(lookup) {
   cardLookup = lookup;
-  document.getElementById('handSize').addEventListener('change', (e) => {
-    handSize = parseInt(e.target.value);
-    recalculate();
-  });
 }
 
 // --- Deck Display ---
@@ -324,52 +319,52 @@ function doRecalculate() {
 
   const deckSize = deckGroups.reduce((s, g) => s + g.count, 0);
   const groups = deckGroups.map(g => ({ name: g.name, count: g.count }));
-
-  // Build pools data for the calculator
   const activePools = pools.filter(p => p.memberGroupIndices.length > 0);
 
-  try {
-    const result = calculate({
-      deckSize,
-      handSize,
-      groups,
-      pools: activePools.map(p => ({
-        id: p.id,
-        name: p.name,
-        memberGroupIndices: [...p.memberGroupIndices],
-      })),
-      combos: activeCombos.map(c => ({
-        name: c.name,
-        requirements: c.requirements.map(r => ({ ...r })),
-      })),
-    });
+  const input = {
+    deckSize,
+    groups,
+    pools: activePools.map(p => ({
+      id: p.id,
+      name: p.name,
+      memberGroupIndices: [...p.memberGroupIndices],
+    })),
+    combos: activeCombos.map(c => ({
+      name: c.name,
+      requirements: c.requirements.map(r => ({ ...r })),
+    })),
+  };
 
-    document.getElementById('mainProbability').textContent =
-      (result.probability * 100).toFixed(2) + '%';
-    document.getElementById('methodIndicator').textContent = result.method;
+  for (const hs of [5, 6]) {
+    try {
+      const result = calculate({ ...input, handSize: hs });
 
-    // Per-combo breakdown
-    const perCombo = document.getElementById('perComboResults');
-    if (result.perCombo.length > 1) {
-      perCombo.innerHTML = `
-        <table class="per-combo-table">
-          <tbody>
-            ${result.perCombo.map(pc => `
-              <tr>
-                <td>${escapeHtml(pc.name)}</td>
-                <td class="combo-prob">${(pc.probability * 100).toFixed(2)}%</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-        <small class="info-text">Individual combo probabilities (overlaps mean the total differs from the sum)</small>
-      `;
-    } else {
-      perCombo.innerHTML = '';
+      document.getElementById(`mainProbability${hs}`).textContent =
+        (result.probability * 100).toFixed(2) + '%';
+      document.getElementById(`methodIndicator${hs}`).textContent = result.method;
+
+      const perCombo = document.getElementById(`perComboResults${hs}`);
+      if (result.perCombo.length > 1) {
+        perCombo.innerHTML = `
+          <table class="per-combo-table">
+            <tbody>
+              ${result.perCombo.map(pc => `
+                <tr>
+                  <td>${escapeHtml(pc.name)}</td>
+                  <td class="combo-prob">${(pc.probability * 100).toFixed(2)}%</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <small class="info-text">Individual combo probabilities (overlaps mean the total differs from the sum)</small>
+        `;
+      } else {
+        perCombo.innerHTML = '';
+      }
+    } catch (err) {
+      document.getElementById(`mainProbability${hs}`).textContent = 'Error';
+      document.getElementById(`methodIndicator${hs}`).textContent = err.message;
     }
-  } catch (err) {
-    document.getElementById('mainProbability').textContent = 'Error';
-    document.getElementById('methodIndicator').textContent = err.message;
   }
 }
 
