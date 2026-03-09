@@ -41,18 +41,59 @@ export function renderDeck(parsedDeck) {
   const grid = document.getElementById('deckGrid');
   grid.innerHTML = deckGroups.map((g, i) => `
     <span class="deck-card" data-group-index="${i}" title="${escapeHtml(g.type)}">
+      <button class="count-btn count-minus" data-action="minus">&minus;</button>
       <span class="card-count">${g.count}</span>
+      <button class="count-btn count-plus" data-action="plus">+</button>
       ${escapeHtml(g.name)}
     </span>
   `).join('');
 
-  document.getElementById('deckCount').textContent = `(${parsedDeck.main.length} cards)`;
+  updateDeckCount();
   document.getElementById('deckDisplay').style.display = '';
   document.getElementById('poolBuilder').style.display = '';
   document.getElementById('comboBuilder').style.display = '';
 
-  // Click a card in deck grid -> add to last combo (or create one)
+  // +/- buttons to edit card counts
   grid.addEventListener('click', (e) => {
+    const btn = e.target.closest('.count-btn');
+    if (btn) {
+      e.stopPropagation();
+      const card = btn.closest('.deck-card');
+      const gi = parseInt(card.dataset.groupIndex);
+      const action = btn.dataset.action;
+
+      if (action === 'plus') {
+        deckGroups[gi].count++;
+      } else if (action === 'minus' && deckGroups[gi].count > 0) {
+        deckGroups[gi].count--;
+      }
+
+      if (deckGroups[gi].count === 0) {
+        card.style.display = 'none';
+        // Clean up combo requirements referencing this card
+        for (const combo of combos) {
+          combo.requirements = combo.requirements.filter(r => !(r.type === 'card' && r.groupIndex === gi));
+        }
+        // Clean up pool memberships
+        for (const pool of pools) {
+          const idx = pool.memberGroupIndices.indexOf(gi);
+          if (idx !== -1) {
+            pool.memberGroupIndices.splice(idx, 1);
+            renderPool(pool);
+          }
+        }
+        rerenderAllCombos();
+      } else {
+        card.querySelector('.card-count').textContent = deckGroups[gi].count;
+        rerenderAllPools();
+      }
+
+      updateDeckCount();
+      recalculate();
+      return;
+    }
+
+    // Click a card in deck grid -> add to last combo (or create one)
     const card = e.target.closest('.deck-card');
     if (!card) return;
     const groupIndex = parseInt(card.dataset.groupIndex);
@@ -172,6 +213,15 @@ function addCombo() {
   combos.push(combo);
   renderCombo(combo);
   return combo;
+}
+
+function updateDeckCount() {
+  const total = deckGroups.reduce((s, g) => s + g.count, 0);
+  document.getElementById('deckCount').textContent = `(${total} cards)`;
+}
+
+function rerenderAllPools() {
+  for (const pool of pools) renderPool(pool);
 }
 
 function rerenderAllCombos() {
