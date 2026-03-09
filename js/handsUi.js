@@ -7,6 +7,7 @@ import { calculate } from './probability.js';
 
 let cardLookup = null;
 let deckGroups = [];    // [{ id, count, name, type }]
+let sideGroups = [];     // [{ id, count, name, type }]
 let pools = [];          // [{ id, name, memberGroupIndices: number[] }]
 let poolIdCounter = 0;
 let combos = [];         // [{ id, name, requirements: Requirement[] }]
@@ -52,6 +53,9 @@ export function renderDeck(parsedDeck) {
   document.getElementById('deckDisplay').style.display = '';
   document.getElementById('poolBuilder').style.display = '';
   document.getElementById('comboBuilder').style.display = '';
+
+  // Side deck
+  renderSideDeck(parsedDeck.side);
 
   // +/- buttons to edit card counts
   grid.addEventListener('click', (e) => {
@@ -113,6 +117,33 @@ export function renderDeck(parsedDeck) {
   comboIdCounter = 0;
   document.getElementById('comboList').innerHTML = '';
   addCombo(); // Start with one empty combo
+}
+
+function renderSideDeck(sideCardIds) {
+  sideGroups = groupCards(sideCardIds).map(g => {
+    const card = cardLookup.get(g.id);
+    return {
+      id: g.id,
+      count: g.count,
+      name: card ? card.name : `Unknown #${g.id}`,
+      type: card ? card.type : 'Unknown',
+    };
+  });
+
+  const section = document.getElementById('sideDeckDisplay');
+  if (sideGroups.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+
+  section.style.display = '';
+  document.getElementById('sideDeckCount').textContent = `(${sideCardIds.length} cards)`;
+  document.getElementById('sideDeckGrid').innerHTML = sideGroups.map(g => `
+    <span class="deck-card" title="${escapeHtml(g.type)}">
+      <span class="card-count">${g.count}</span>
+      ${escapeHtml(g.name)}
+    </span>
+  `).join('');
 }
 
 // --- Pool Builder ---
@@ -450,6 +481,7 @@ export function serializeState() {
 
   const state = {
     d: deckGroups.filter(g => g.count > 0).map(g => [g.id, g.count]),
+    s: sideGroups.map(g => [g.id, g.count]),
     p: pools.map(p => ({ n: p.name, m: [...p.memberGroupIndices] })),
     c: combos.map(c => ({
       n: c.name,
@@ -496,6 +528,29 @@ export async function deserializeState(hash) {
     document.getElementById('deckDisplay').style.display = '';
     document.getElementById('poolBuilder').style.display = '';
     document.getElementById('comboBuilder').style.display = '';
+
+    // Restore side deck
+    if (state.s && state.s.length > 0) {
+      sideGroups = state.s.map(([id, count]) => {
+        const card = cardLookup.get(String(id));
+        return {
+          id: String(id),
+          count,
+          name: card ? card.name : `Unknown #${id}`,
+          type: card ? card.type : 'Unknown',
+        };
+      });
+      const sideSection = document.getElementById('sideDeckDisplay');
+      sideSection.style.display = '';
+      const total = state.s.reduce((s, [, c]) => s + c, 0);
+      document.getElementById('sideDeckCount').textContent = `(${total} cards)`;
+      document.getElementById('sideDeckGrid').innerHTML = sideGroups.map(g => `
+        <span class="deck-card" title="${escapeHtml(g.type)}">
+          <span class="card-count">${g.count}</span>
+          ${escapeHtml(g.name)}
+        </span>
+      `).join('');
+    }
 
     // Wire deck grid click handler
     grid.addEventListener('click', (e) => {
