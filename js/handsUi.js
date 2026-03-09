@@ -513,17 +513,12 @@ function renderMatchup(matchup) {
       <span class="swap-arrow">&rarr;</span>
       <select class="swap-in-select" data-matchup-id="${matchup.id}">
         <option value="">Card in...</option>
-        ${sideGroups.length > 0 ? `<optgroup label="Side Deck">
-          ${sideGroups.map(sg => {
-            const gi = sideGroupIndexMap.get(sg.id);
-            return sg.count > 0 && gi !== undefined
-              ? `<option value="${gi}">${escapeHtml(sg.name)} (${sg.count}x side)</option>`
-              : '';
-          }).join('')}
-        </optgroup>` : ''}
-        <optgroup label="Main Deck">
-          ${deckGroups.map((g, i) => g.count > 0 ? `<option value="${i}">${escapeHtml(g.name)} (${g.count}x)</option>` : '').join('')}
-        </optgroup>
+        ${sideGroups.map(sg => {
+          const gi = sideGroupIndexMap.get(sg.id);
+          return sg.count > 0 && gi !== undefined
+            ? `<option value="${gi}">${escapeHtml(sg.name)} (${sg.count}x)</option>`
+            : '';
+        }).join('')}
       </select>
       <button class="add-swap-btn outline" data-matchup-id="${matchup.id}">+ Swap</button>
     </div>
