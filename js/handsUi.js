@@ -12,6 +12,8 @@ let pools = [];          // [{ id, name, memberGroupIndices: number[] }]
 let poolIdCounter = 0;
 let combos = [];         // [{ id, name, requirements: Requirement[] }]
 let comboIdCounter = 0;
+let matchups = [];       // [{ id, name, swaps: [{ out: groupIndex, in: groupIndex }] }]
+let matchupIdCounter = 0;
 
 function escapeHtml(text) {
   const div = document.createElement('div');
@@ -39,9 +41,15 @@ export function renderDeck(parsedDeck) {
     };
   });
 
+  // Side deck
+  renderSideDeck(parsedDeck.side);
+
+  // Merge side-only cards into deckGroups with count 0 (Chunk 1)
+  mergeSideCardsIntoDeckGroups();
+
   const grid = document.getElementById('deckGrid');
   grid.innerHTML = deckGroups.map((g, i) => `
-    <span class="deck-card" data-group-index="${i}" title="${escapeHtml(g.type)}">
+    <span class="deck-card" data-group-index="${i}" title="${escapeHtml(g.type)}"${g.count === 0 ? ' style="display:none"' : ''}>
       <button class="count-btn count-minus" data-action="minus">&minus;</button>
       <span class="card-count">${g.count}</span>
       <button class="count-btn count-plus" data-action="plus">+</button>
@@ -53,11 +61,47 @@ export function renderDeck(parsedDeck) {
   document.getElementById('deckDisplay').style.display = '';
   document.getElementById('poolBuilder').style.display = '';
   document.getElementById('comboBuilder').style.display = '';
-
-  // Side deck
-  renderSideDeck(parsedDeck.side);
+  document.getElementById('matchupBuilder').style.display = '';
 
   // +/- buttons to edit card counts
+  wireDeckGrid(grid);
+
+  // Setup pool builder
+  document.getElementById('addPoolBtn').addEventListener('click', () => addPool());
+  pools = [];
+  poolIdCounter = 0;
+  document.getElementById('poolList').innerHTML = '';
+
+  // Setup combo builder
+  document.getElementById('addComboBtn').addEventListener('click', () => addCombo());
+  combos = [];
+  comboIdCounter = 0;
+  document.getElementById('comboList').innerHTML = '';
+  addCombo(); // Start with one empty combo
+
+  // Setup matchup builder
+  document.getElementById('addMatchupBtn').addEventListener('click', () => addMatchup());
+  matchups = [];
+  matchupIdCounter = 0;
+  document.getElementById('matchupList').innerHTML = '';
+}
+
+function mergeSideCardsIntoDeckGroups() {
+  const existingIds = new Set(deckGroups.map(g => g.id));
+  for (const sg of sideGroups) {
+    if (!existingIds.has(sg.id)) {
+      deckGroups.push({
+        id: sg.id,
+        count: 0,
+        name: sg.name,
+        type: sg.type,
+      });
+      existingIds.add(sg.id);
+    }
+  }
+}
+
+function wireDeckGrid(grid) {
   grid.addEventListener('click', (e) => {
     const btn = e.target.closest('.count-btn');
     if (btn) {
@@ -88,6 +132,7 @@ export function renderDeck(parsedDeck) {
         }
         rerenderAllCombos();
       } else {
+        card.style.display = '';
         card.querySelector('.card-count').textContent = deckGroups[gi].count;
         rerenderAllPools();
       }
@@ -104,19 +149,6 @@ export function renderDeck(parsedDeck) {
     if (combos.length === 0) addCombo();
     addRequirementToCombo(combos[combos.length - 1].id, { type: 'card', groupIndex });
   });
-
-  // Setup pool builder
-  document.getElementById('addPoolBtn').addEventListener('click', () => addPool());
-  pools = [];
-  poolIdCounter = 0;
-  document.getElementById('poolList').innerHTML = '';
-
-  // Setup combo builder
-  document.getElementById('addComboBtn').addEventListener('click', () => addCombo());
-  combos = [];
-  comboIdCounter = 0;
-  document.getElementById('comboList').innerHTML = '';
-  addCombo(); // Start with one empty combo
 }
 
 function renderSideDeck(sideCardIds) {
@@ -229,7 +261,7 @@ function renderPool(pool) {
     <select class="pool-add-card" data-pool-id="${pool.id}">
       <option value="">+ Add card...</option>
       ${deckGroups.map((g, i) =>
-        pool.memberGroupIndices.includes(i) ? '' :
+        pool.memberGroupIndices.includes(i) || g.count === 0 ? '' :
         `<option value="${i}">${escapeHtml(g.name)} (${g.count}x)</option>`
       ).join('')}
     </select>
@@ -359,7 +391,7 @@ function renderCombo(combo) {
         </optgroup>
       ` : ''}
       <optgroup label="Cards">
-        ${deckGroups.map((g, i) => `<option value="${i}">${escapeHtml(g.name)} (${g.count}x)</option>`).join('')}
+        ${deckGroups.map((g, i) => g.count > 0 ? `<option value="${i}">${escapeHtml(g.name)} (${g.count}x)</option>` : '').join('')}
       </optgroup>
     </select>
   `;
@@ -423,6 +455,114 @@ function addRequirementToCombo(comboId, req) {
   recalculate();
 }
 
+// --- Matchup Builder ---
+
+function addMatchup() {
+  const id = matchupIdCounter++;
+  const matchup = { id, name: `Matchup ${id + 1}`, swaps: [] };
+  matchups.push(matchup);
+  renderMatchup(matchup);
+  recalculate();
+  return matchup;
+}
+
+function renderMatchup(matchup) {
+  const list = document.getElementById('matchupList');
+  let panel = document.getElementById(`matchup-${matchup.id}`);
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.className = 'matchup-panel';
+    panel.id = `matchup-${matchup.id}`;
+    list.appendChild(panel);
+  }
+
+  // Build available cards for "out" (main deck cards with count > 0)
+  // and "in" (side deck cards with count > 0, mapped to their deckGroup index)
+  const sideGroupIndexMap = buildSideGroupIndexMap();
+
+  panel.innerHTML = `
+    <div class="matchup-header">
+      <input type="text" value="${escapeHtml(matchup.name)}" data-matchup-id="${matchup.id}" class="matchup-name-input">
+      <button class="remove-matchup outline secondary" data-matchup-id="${matchup.id}">Remove</button>
+    </div>
+    <div class="matchup-swaps" id="matchup-swaps-${matchup.id}">
+      ${matchup.swaps.map((swap, si) => `
+        <div class="swap-row" data-swap-index="${si}">
+          <span class="swap-label">Out:</span>
+          <span class="swap-card">${escapeHtml(deckGroups[swap.out].name)}</span>
+          <span class="swap-arrow">&rarr;</span>
+          <span class="swap-label">In:</span>
+          <span class="swap-card side-card">${escapeHtml(deckGroups[swap.in].name)}</span>
+          <button class="remove-swap" data-matchup-id="${matchup.id}" data-swap-index="${si}">&times;</button>
+        </div>
+      `).join('')}
+    </div>
+    <div class="swap-add-row">
+      <select class="swap-out-select" data-matchup-id="${matchup.id}">
+        <option value="">Card out...</option>
+        ${deckGroups.map((g, i) => g.count > 0 ? `<option value="${i}">${escapeHtml(g.name)} (${g.count}x)</option>` : '').join('')}
+      </select>
+      <span class="swap-arrow">&rarr;</span>
+      <select class="swap-in-select" data-matchup-id="${matchup.id}">
+        <option value="">Card in...</option>
+        ${sideGroups.map((sg, si) => {
+          const gi = sideGroupIndexMap.get(sg.id);
+          return sg.count > 0 && gi !== undefined
+            ? `<option value="${gi}">${escapeHtml(sg.name)} (${sg.count}x)</option>`
+            : '';
+        }).join('')}
+      </select>
+      <button class="add-swap-btn outline" data-matchup-id="${matchup.id}">+ Swap</button>
+    </div>
+  `;
+
+  // Wire events
+  panel.querySelector('.matchup-name-input').addEventListener('input', (e) => {
+    matchup.name = e.target.value;
+    recalculate();
+  });
+
+  panel.querySelector('.remove-matchup').addEventListener('click', () => {
+    matchups = matchups.filter(m => m.id !== matchup.id);
+    panel.remove();
+    recalculate();
+  });
+
+  panel.querySelector('.add-swap-btn').addEventListener('click', () => {
+    const outSel = panel.querySelector('.swap-out-select');
+    const inSel = panel.querySelector('.swap-in-select');
+    if (outSel.value === '' || inSel.value === '') return;
+    const outIdx = parseInt(outSel.value);
+    const inIdx = parseInt(inSel.value);
+    matchup.swaps.push({ out: outIdx, in: inIdx });
+    renderMatchup(matchup);
+    recalculate();
+  });
+
+  panel.querySelectorAll('.remove-swap').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const si = parseInt(e.target.dataset.swapIndex);
+      matchup.swaps.splice(si, 1);
+      renderMatchup(matchup);
+      recalculate();
+    });
+  });
+}
+
+function buildSideGroupIndexMap() {
+  // Map side deck card IDs to their index in deckGroups
+  const map = new Map();
+  for (const sg of sideGroups) {
+    const gi = deckGroups.findIndex(g => g.id === sg.id);
+    if (gi !== -1) map.set(sg.id, gi);
+  }
+  return map;
+}
+
+function rerenderAllMatchups() {
+  for (const matchup of matchups) renderMatchup(matchup);
+}
+
 // --- Calculation ---
 
 let recalcTimer = null;
@@ -460,9 +600,12 @@ function doRecalculate() {
     })),
   };
 
+  // Base deck results
+  const baseResults = {};
   for (const hs of [5, 6]) {
     try {
       const result = calculate({ ...input, handSize: hs });
+      baseResults[hs] = result;
 
       document.getElementById(`mainProbability${hs}`).textContent =
         (result.probability * 100).toFixed(2) + '%';
@@ -492,6 +635,73 @@ function doRecalculate() {
     }
   }
 
+  // Matchup results (Chunk 3 & 4)
+  const matchupResultsEl = document.getElementById('matchupResults');
+  const activeMatchups = matchups.filter(m => m.swaps.length > 0);
+
+  if (activeMatchups.length > 0 && baseResults[5] && baseResults[6]) {
+    const rows = [];
+    for (const matchup of activeMatchups) {
+      const sidedGroups = deckGroups.map(g => ({ name: g.name, count: g.count }));
+
+      // Apply swaps
+      for (const swap of matchup.swaps) {
+        sidedGroups[swap.out].count = Math.max(0, sidedGroups[swap.out].count - 1);
+        sidedGroups[swap.in].count += 1;
+      }
+
+      const sidedDeckSize = sidedGroups.reduce((s, g) => s + g.count, 0);
+      const sidedInput = {
+        ...input,
+        deckSize: sidedDeckSize,
+        groups: sidedGroups,
+      };
+
+      const row = { name: matchup.name, results: {} };
+      for (const hs of [5, 6]) {
+        try {
+          const result = calculate({ ...sidedInput, handSize: hs });
+          row.results[hs] = result.probability;
+        } catch {
+          row.results[hs] = null;
+        }
+      }
+      rows.push(row);
+    }
+
+    matchupResultsEl.innerHTML = `
+      <h3 class="matchup-table-title">Post-Siding Comparison</h3>
+      <table class="matchup-comparison-table">
+        <thead>
+          <tr>
+            <th>Matchup</th>
+            <th>Going First</th>
+            <th>Going Second</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Base (no side)</td>
+            <td>${(baseResults[5].probability * 100).toFixed(2)}%</td>
+            <td>${(baseResults[6].probability * 100).toFixed(2)}%</td>
+          </tr>
+          ${rows.map(row => {
+            const delta5 = row.results[5] !== null ? row.results[5] - baseResults[5].probability : null;
+            const delta6 = row.results[6] !== null ? row.results[6] - baseResults[6].probability : null;
+            return `
+              <tr>
+                <td>${escapeHtml(row.name)}</td>
+                <td>${formatMatchupCell(row.results[5], delta5)}</td>
+                <td>${formatMatchupCell(row.results[6], delta6)}</td>
+              </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    `;
+  } else {
+    matchupResultsEl.innerHTML = '';
+  }
+
   // Wire share button on first results display
   const shareBtn = document.getElementById('shareLinkBtn');
   if (shareBtn && !shareBtn._wired) {
@@ -500,6 +710,15 @@ function doRecalculate() {
   }
 
   updateHash();
+}
+
+function formatMatchupCell(prob, delta) {
+  if (prob === null) return 'Error';
+  const pct = (prob * 100).toFixed(2) + '%';
+  if (delta === null || Math.abs(delta) < 0.0001) return pct;
+  const sign = delta > 0 ? '+' : '';
+  const cls = delta > 0 ? 'delta-positive' : 'delta-negative';
+  return `${pct} <span class="${cls}">(${sign}${(delta * 100).toFixed(2)}%)</span>`;
 }
 
 // --- Shareable Links ---
@@ -524,7 +743,7 @@ export function serializeState() {
   pools.forEach((p, i) => poolIndexMap.set(p.id, i));
 
   const state = {
-    d: deckGroups.filter(g => g.count > 0).map(g => [g.id, g.count]),
+    d: deckGroups.map(g => [g.id, g.count]),
     s: sideGroups.filter(g => g.count > 0).map(g => [g.id, g.count]),
     p: pools.map(p => ({ n: p.name, m: [...p.memberGroupIndices] })),
     c: combos.map(c => ({
@@ -536,6 +755,10 @@ export function serializeState() {
         return { t: 'c', g: r.groupIndex, m: r.min };
       }),
     })),
+    m: matchups.map(mu => ({
+      n: mu.name,
+      w: mu.swaps.map(sw => [sw.out, sw.in]),
+    })),
   };
   return JSON.stringify(state);
 }
@@ -546,7 +769,7 @@ export async function deserializeState(hash) {
     const json = await decompress(encoded);
     const state = JSON.parse(json);
 
-    // Rebuild deckGroups
+    // Rebuild deckGroups (includes count-0 side-only cards)
     deckGroups = state.d.map(([id, count]) => {
       const card = cardLookup.get(String(id));
       return {
@@ -557,10 +780,27 @@ export async function deserializeState(hash) {
       };
     });
 
+    // Restore side deck
+    sideGroups = [];
+    if (state.s && state.s.length > 0) {
+      sideGroups = state.s.map(([id, count]) => {
+        const card = cardLookup.get(String(id));
+        return {
+          id: String(id),
+          count,
+          name: card ? card.name : `Unknown #${id}`,
+          type: card ? card.type : 'Unknown',
+        };
+      });
+
+      // Merge any side-only cards that aren't already in deckGroups
+      mergeSideCardsIntoDeckGroups();
+    }
+
     // Render deck grid
     const grid = document.getElementById('deckGrid');
     grid.innerHTML = deckGroups.map((g, i) => `
-      <span class="deck-card" data-group-index="${i}" title="${escapeHtml(g.type)}">
+      <span class="deck-card" data-group-index="${i}" title="${escapeHtml(g.type)}"${g.count === 0 ? ' style="display:none"' : ''}>
         <button class="count-btn count-minus" data-action="minus">&minus;</button>
         <span class="card-count">${g.count}</span>
         <button class="count-btn count-plus" data-action="plus">+</button>
@@ -572,69 +812,20 @@ export async function deserializeState(hash) {
     document.getElementById('deckDisplay').style.display = '';
     document.getElementById('poolBuilder').style.display = '';
     document.getElementById('comboBuilder').style.display = '';
+    document.getElementById('matchupBuilder').style.display = '';
 
-    // Restore side deck
-    if (state.s && state.s.length > 0) {
-      sideGroups = state.s.map(([id, count]) => {
-        const card = cardLookup.get(String(id));
-        return {
-          id: String(id),
-          count,
-          name: card ? card.name : `Unknown #${id}`,
-          type: card ? card.type : 'Unknown',
-        };
-      });
+    // Render side deck
+    if (sideGroups.length > 0) {
       renderSideDeckGrid();
     }
 
     // Wire deck grid click handler
-    grid.addEventListener('click', (e) => {
-      const btn = e.target.closest('.count-btn');
-      if (btn) {
-        e.stopPropagation();
-        const card = btn.closest('.deck-card');
-        const gi = parseInt(card.dataset.groupIndex);
-        const action = btn.dataset.action;
+    wireDeckGrid(grid);
 
-        if (action === 'plus') {
-          deckGroups[gi].count++;
-        } else if (action === 'minus' && deckGroups[gi].count > 0) {
-          deckGroups[gi].count--;
-        }
-
-        if (deckGroups[gi].count === 0) {
-          card.style.display = 'none';
-          for (const combo of combos) {
-            combo.requirements = combo.requirements.filter(r => !(r.type === 'card' && r.groupIndex === gi));
-          }
-          for (const pool of pools) {
-            const idx = pool.memberGroupIndices.indexOf(gi);
-            if (idx !== -1) {
-              pool.memberGroupIndices.splice(idx, 1);
-              renderPool(pool);
-            }
-          }
-          rerenderAllCombos();
-        } else {
-          card.querySelector('.card-count').textContent = deckGroups[gi].count;
-          rerenderAllPools();
-        }
-
-        updateDeckCount();
-        recalculate();
-        return;
-      }
-
-      const card = e.target.closest('.deck-card');
-      if (!card) return;
-      const groupIndex = parseInt(card.dataset.groupIndex);
-      if (combos.length === 0) addCombo();
-      addRequirementToCombo(combos[combos.length - 1].id, { type: 'card', groupIndex });
-    });
-
-    // Wire pool/combo buttons
+    // Wire pool/combo/matchup buttons
     document.getElementById('addPoolBtn').addEventListener('click', () => addPool());
     document.getElementById('addComboBtn').addEventListener('click', () => addCombo());
+    document.getElementById('addMatchupBtn').addEventListener('click', () => addMatchup());
 
     // Rebuild pools
     pools = [];
@@ -663,6 +854,17 @@ export async function deserializeState(hash) {
         return { type: 'card', groupIndex: r.g, min: r.m };
       });
       renderCombo(combo);
+    }
+
+    // Rebuild matchups (Chunk 5)
+    matchups = [];
+    matchupIdCounter = 0;
+    document.getElementById('matchupList').innerHTML = '';
+    for (const sm of (state.m || [])) {
+      const matchup = addMatchup();
+      matchup.name = sm.n;
+      matchup.swaps = sm.w.map(([out, inIdx]) => ({ out, in: inIdx }));
+      renderMatchup(matchup);
     }
 
     rerenderAllCombos();
