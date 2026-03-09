@@ -486,16 +486,24 @@ function renderMatchup(matchup) {
       <button class="remove-matchup outline secondary" data-matchup-id="${matchup.id}">Remove</button>
     </div>
     <div class="matchup-swaps" id="matchup-swaps-${matchup.id}">
-      ${matchup.swaps.map((swap, si) => `
+      ${matchup.swaps.map((swap, si) => {
+        const maxOut = deckGroups[swap.out].count;
+        const sideEntry = sideGroups.find(sg => sg.id === deckGroups[swap.in].id);
+        const maxIn = sideEntry ? sideEntry.count : 3;
+        const maxCount = Math.max(1, Math.min(maxOut, maxIn));
+        return `
         <div class="swap-row" data-swap-index="${si}">
-          <span class="swap-label">Out:</span>
+          <select class="swap-count-select" data-matchup-id="${matchup.id}" data-swap-index="${si}">
+            ${Array.from({ length: maxCount }, (_, i) => i + 1).map(n =>
+              `<option value="${n}" ${n === swap.count ? 'selected' : ''}>${n}x</option>`
+            ).join('')}
+          </select>
           <span class="swap-card">${escapeHtml(deckGroups[swap.out].name)}</span>
           <span class="swap-arrow">&rarr;</span>
-          <span class="swap-label">In:</span>
           <span class="swap-card side-card">${escapeHtml(deckGroups[swap.in].name)}</span>
           <button class="remove-swap" data-matchup-id="${matchup.id}" data-swap-index="${si}">&times;</button>
-        </div>
-      `).join('')}
+        </div>`;
+      }).join('')}
     </div>
     <div class="swap-add-row">
       <select class="swap-out-select" data-matchup-id="${matchup.id}">
@@ -534,9 +542,18 @@ function renderMatchup(matchup) {
     if (outSel.value === '' || inSel.value === '') return;
     const outIdx = parseInt(outSel.value);
     const inIdx = parseInt(inSel.value);
-    matchup.swaps.push({ out: outIdx, in: inIdx });
+    matchup.swaps.push({ out: outIdx, in: inIdx, count: 1 });
     renderMatchup(matchup);
     recalculate();
+  });
+
+  // Wire swap count selectors
+  panel.querySelectorAll('.swap-count-select').forEach(sel => {
+    sel.addEventListener('change', (e) => {
+      const si = parseInt(e.target.dataset.swapIndex);
+      matchup.swaps[si].count = parseInt(e.target.value);
+      recalculate();
+    });
   });
 
   panel.querySelectorAll('.remove-swap').forEach(btn => {
@@ -646,8 +663,9 @@ function doRecalculate() {
 
       // Apply swaps
       for (const swap of matchup.swaps) {
-        sidedGroups[swap.out].count = Math.max(0, sidedGroups[swap.out].count - 1);
-        sidedGroups[swap.in].count += 1;
+        const n = swap.count || 1;
+        sidedGroups[swap.out].count = Math.max(0, sidedGroups[swap.out].count - n);
+        sidedGroups[swap.in].count += n;
       }
 
       const sidedDeckSize = sidedGroups.reduce((s, g) => s + g.count, 0);
@@ -757,7 +775,7 @@ export function serializeState() {
     })),
     m: matchups.map(mu => ({
       n: mu.name,
-      w: mu.swaps.map(sw => [sw.out, sw.in]),
+      w: mu.swaps.map(sw => [sw.out, sw.in, sw.count || 1]),
     })),
   };
   return JSON.stringify(state);
@@ -863,7 +881,7 @@ export async function deserializeState(hash) {
     for (const sm of (state.m || [])) {
       const matchup = addMatchup();
       matchup.name = sm.n;
-      matchup.swaps = sm.w.map(([out, inIdx]) => ({ out, in: inIdx }));
+      matchup.swaps = sm.w.map(w => ({ out: w[0], in: w[1], count: w[2] || 1 }));
       renderMatchup(matchup);
     }
 

@@ -664,6 +664,14 @@ details {
   text-transform: uppercase;
 }
 
+.swap-count-select {
+  margin: 0;
+  padding: 0.1rem 0.3rem;
+  font-size: 0.8rem;
+  width: 3.5rem;
+  height: auto;
+}
+
 .swap-card {
   padding: 0.15rem 0.4rem;
   background: rgba(244, 67, 54, 0.15);
