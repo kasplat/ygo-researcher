@@ -416,6 +416,200 @@ function doRecalculate() {
       document.getElementById(`methodIndicator${hs}`).textContent = err.message;
     }
   }
+
+  // Wire share button on first results display
+  const shareBtn = document.getElementById('shareLinkBtn');
+  if (shareBtn && !shareBtn._wired) {
+    shareBtn.addEventListener('click', () => copyShareLink());
+    shareBtn._wired = true;
+  }
+
+  updateHash();
+}
+
+// --- Shareable Links ---
+
+async function compress(str) {
+  const stream = new Blob([str]).stream().pipeThrough(new CompressionStream('deflate'));
+  const buf = await new Response(stream).arrayBuffer();
+  return btoa(String.fromCharCode(...new Uint8Array(buf)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+async function decompress(b64) {
+  const bin = atob(b64.replace(/-/g, '+').replace(/_/g, '/'));
+  const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate'));
+  return new Response(stream).text();
+}
+
+export function serializeState() {
+  // Build pool index map: pool.id -> index in serialized array
+  const poolIndexMap = new Map();
+  pools.forEach((p, i) => poolIndexMap.set(p.id, i));
+
+  const state = {
+    d: deckGroups.filter(g => g.count > 0).map(g => [g.id, g.count]),
+    p: pools.map(p => ({ n: p.name, m: [...p.memberGroupIndices] })),
+    c: combos.map(c => ({
+      n: c.name,
+      r: c.requirements.map(r => {
+        if (r.type === 'pool') {
+          return { t: 'p', p: poolIndexMap.get(r.poolId), m: r.min };
+        }
+        return { t: 'c', g: r.groupIndex, m: r.min };
+      }),
+    })),
+  };
+  return JSON.stringify(state);
+}
+
+export async function deserializeState(hash) {
+  try {
+    const encoded = hash.replace(/^#data=/, '');
+    const json = await decompress(encoded);
+    const state = JSON.parse(json);
+
+    // Rebuild deckGroups
+    deckGroups = state.d.map(([id, count]) => {
+      const card = cardLookup.get(String(id));
+      return {
+        id: String(id),
+        count,
+        name: card ? card.name : `Unknown #${id}`,
+        type: card ? card.type : 'Unknown',
+      };
+    });
+
+    // Render deck grid
+    const grid = document.getElementById('deckGrid');
+    grid.innerHTML = deckGroups.map((g, i) => `
+      <span class="deck-card" data-group-index="${i}" title="${escapeHtml(g.type)}">
+        <button class="count-btn count-minus" data-action="minus">&minus;</button>
+        <span class="card-count">${g.count}</span>
+        <button class="count-btn count-plus" data-action="plus">+</button>
+        ${escapeHtml(g.name)}
+      </span>
+    `).join('');
+
+    updateDeckCount();
+    document.getElementById('deckDisplay').style.display = '';
+    document.getElementById('poolBuilder').style.display = '';
+    document.getElementById('comboBuilder').style.display = '';
+
+    // Wire deck grid click handler
+    grid.addEventListener('click', (e) => {
+      const btn = e.target.closest('.count-btn');
+      if (btn) {
+        e.stopPropagation();
+        const card = btn.closest('.deck-card');
+        const gi = parseInt(card.dataset.groupIndex);
+        const action = btn.dataset.action;
+
+        if (action === 'plus') {
+          deckGroups[gi].count++;
+        } else if (action === 'minus' && deckGroups[gi].count > 0) {
+          deckGroups[gi].count--;
+        }
+
+        if (deckGroups[gi].count === 0) {
+          card.style.display = 'none';
+          for (const combo of combos) {
+            combo.requirements = combo.requirements.filter(r => !(r.type === 'card' && r.groupIndex === gi));
+          }
+          for (const pool of pools) {
+            const idx = pool.memberGroupIndices.indexOf(gi);
+            if (idx !== -1) {
+              pool.memberGroupIndices.splice(idx, 1);
+              renderPool(pool);
+            }
+          }
+          rerenderAllCombos();
+        } else {
+          card.querySelector('.card-count').textContent = deckGroups[gi].count;
+          rerenderAllPools();
+        }
+
+        updateDeckCount();
+        recalculate();
+        return;
+      }
+
+      const card = e.target.closest('.deck-card');
+      if (!card) return;
+      const groupIndex = parseInt(card.dataset.groupIndex);
+      if (combos.length === 0) addCombo();
+      addRequirementToCombo(combos[combos.length - 1].id, { type: 'card', groupIndex });
+    });
+
+    // Wire pool/combo buttons
+    document.getElementById('addPoolBtn').addEventListener('click', () => addPool());
+    document.getElementById('addComboBtn').addEventListener('click', () => addCombo());
+
+    // Rebuild pools
+    pools = [];
+    poolIdCounter = 0;
+    document.getElementById('poolList').innerHTML = '';
+    const poolIdByIndex = [];
+    for (const sp of (state.p || [])) {
+      const pool = addPool();
+      pool.name = sp.n;
+      pool.memberGroupIndices = [...sp.m];
+      poolIdByIndex.push(pool.id);
+      renderPool(pool);
+    }
+
+    // Rebuild combos
+    combos = [];
+    comboIdCounter = 0;
+    document.getElementById('comboList').innerHTML = '';
+    for (const sc of (state.c || [])) {
+      const combo = addCombo();
+      combo.name = sc.n;
+      combo.requirements = sc.r.map(r => {
+        if (r.t === 'p') {
+          return { type: 'pool', poolId: poolIdByIndex[r.p], min: r.m };
+        }
+        return { type: 'card', groupIndex: r.g, min: r.m };
+      });
+      renderCombo(combo);
+    }
+
+    rerenderAllCombos();
+    recalculate();
+    return true;
+  } catch (err) {
+    console.warn('Failed to deserialize state from URL:', err);
+    return false;
+  }
+}
+
+async function updateHash() {
+  if (deckGroups.length === 0) return;
+  try {
+    const json = serializeState();
+    const encoded = await compress(json);
+    const newHash = '#data=' + encoded;
+    history.replaceState(null, '', newHash);
+  } catch (err) {
+    // Silently fail — hash update is non-critical
+  }
+}
+
+export async function copyShareLink() {
+  try {
+    const json = serializeState();
+    const encoded = await compress(json);
+    const url = window.location.origin + window.location.pathname + '#data=' + encoded;
+    await navigator.clipboard.writeText(url);
+    const feedback = document.getElementById('shareLinkFeedback');
+    feedback.textContent = 'Copied!';
+    setTimeout(() => { feedback.textContent = ''; }, 2000);
+  } catch (err) {
+    const feedback = document.getElementById('shareLinkFeedback');
+    feedback.textContent = 'Failed to copy';
+    setTimeout(() => { feedback.textContent = ''; }, 2000);
+  }
 }
 
 // --- Warnings ---

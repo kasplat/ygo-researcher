@@ -585,6 +585,21 @@ details {
   font-size: 0.8rem;
 }
 
+.share-link-row {
+  text-align: center;
+  margin-top: 1rem;
+}
+
+.share-link-row button {
+  display: inline;
+  width: auto;
+}
+
+.share-link-row small {
+  margin-left: 0.5rem;
+  color: var(--pico-primary);
+}
+
 .per-combo-table {
   text-align: left;
   margin: 0 auto;

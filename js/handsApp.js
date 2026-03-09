@@ -4,7 +4,7 @@
 
 import { getCardDatabase, buildCardLookup } from './cardDb.js';
 import { parseYdk, validateDeck } from './ydkParser.js';
-import { init, renderDeck, showWarnings } from './handsUi.js';
+import { init, renderDeck, showWarnings, deserializeState } from './handsUi.js';
 
 async function loadCardDb() {
   const cards = await getCardDatabase();
@@ -62,3 +62,13 @@ dropZone.addEventListener('drop', (e) => {
 dropZone.addEventListener('click', () => {
   document.getElementById('ydkFile').click();
 });
+
+// --- Load from URL hash ---
+(async () => {
+  const hash = window.location.hash;
+  if (hash && hash.startsWith('#data=')) {
+    const cardLookup = await loadCardDb();
+    init(cardLookup);
+    await deserializeState(hash);
+  }
+})();
