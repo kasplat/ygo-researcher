@@ -222,6 +222,16 @@ function updateSideDeckCount() {
   document.getElementById('sideDeckCount').textContent = `(${total} cards)`;
 }
 
+function isSideOnly(groupIndex) {
+  const g = deckGroups[groupIndex];
+  return g.count === 0 && sideGroups.some(sg => sg.id === g.id);
+}
+
+function cardLabel(g) {
+  if (g.count === 0) return `${escapeHtml(g.name)} (side)`;
+  return `${escapeHtml(g.name)} (${g.count}x)`;
+}
+
 // --- Pool Builder ---
 
 function addPool() {
@@ -261,8 +271,8 @@ function renderPool(pool) {
     <select class="pool-add-card" data-pool-id="${pool.id}">
       <option value="">+ Add card...</option>
       ${deckGroups.map((g, i) =>
-        pool.memberGroupIndices.includes(i) || g.count === 0 ? '' :
-        `<option value="${i}">${escapeHtml(g.name)} (${g.count}x)</option>`
+        pool.memberGroupIndices.includes(i) || (g.count === 0 && !isSideOnly(i)) ? '' :
+        `<option value="${i}">${cardLabel(g)}</option>`
       ).join('')}
     </select>
   `;
@@ -371,11 +381,13 @@ function renderCombo(combo) {
             </span>`;
         }
         const g = deckGroups[req.groupIndex];
+        const sideCount = sideGroups.find(sg => sg.id === g.id)?.count || 0;
+        const maxMin = Math.max(g.count, sideCount, 1);
         return `
-          <span class="combo-req">
-            ${escapeHtml(g.name)}
+          <span class="combo-req${isSideOnly(req.groupIndex) ? ' side-req' : ''}">
+            ${escapeHtml(g.name)}${g.count === 0 ? ' <span class="pool-label">side</span>' : ''}
             <select data-combo-id="${combo.id}" data-req-index="${ri}" class="min-select">
-              ${Array.from({ length: g.count }, (_, i) => i + 1).map(n =>
+              ${Array.from({ length: maxMin }, (_, i) => i + 1).map(n =>
                 `<option value="${n}" ${n === req.min ? 'selected' : ''}>${n}+</option>`
               ).join('')}
             </select>
@@ -391,7 +403,7 @@ function renderCombo(combo) {
         </optgroup>
       ` : ''}
       <optgroup label="Cards">
-        ${deckGroups.map((g, i) => g.count > 0 ? `<option value="${i}">${escapeHtml(g.name)} (${g.count}x)</option>` : '').join('')}
+        ${deckGroups.map((g, i) => (g.count > 0 || isSideOnly(i)) ? `<option value="${i}">${cardLabel(g)}</option>` : '').join('')}
       </optgroup>
     </select>
   `;
