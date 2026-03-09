@@ -130,20 +130,64 @@ function renderSideDeck(sideCardIds) {
     };
   });
 
+  renderSideDeckGrid();
+}
+
+function renderSideDeckGrid() {
   const section = document.getElementById('sideDeckDisplay');
-  if (sideGroups.length === 0) {
+  if (sideGroups.length === 0 || sideGroups.every(g => g.count === 0)) {
     section.style.display = 'none';
     return;
   }
 
   section.style.display = '';
-  document.getElementById('sideDeckCount').textContent = `(${sideCardIds.length} cards)`;
-  document.getElementById('sideDeckGrid').innerHTML = sideGroups.map(g => `
-    <span class="deck-card" title="${escapeHtml(g.type)}">
+  updateSideDeckCount();
+
+  const grid = document.getElementById('sideDeckGrid');
+  grid.innerHTML = sideGroups.map((g, i) => `
+    <span class="deck-card" data-side-index="${i}" title="${escapeHtml(g.type)}"${g.count === 0 ? ' style="display:none"' : ''}>
+      <button class="count-btn count-minus" data-action="minus">&minus;</button>
       <span class="card-count">${g.count}</span>
+      <button class="count-btn count-plus" data-action="plus">+</button>
       ${escapeHtml(g.name)}
     </span>
   `).join('');
+
+  wireSideDeckGrid(grid);
+}
+
+function wireSideDeckGrid(grid) {
+  grid.addEventListener('click', (e) => {
+    const btn = e.target.closest('.count-btn');
+    if (!btn) return;
+    e.stopPropagation();
+
+    const card = btn.closest('.deck-card');
+    const si = parseInt(card.dataset.sideIndex);
+    const action = btn.dataset.action;
+
+    if (action === 'plus') {
+      sideGroups[si].count++;
+    } else if (action === 'minus' && sideGroups[si].count > 0) {
+      sideGroups[si].count--;
+    }
+
+    if (sideGroups[si].count === 0) {
+      card.style.display = 'none';
+      if (sideGroups.every(g => g.count === 0)) {
+        document.getElementById('sideDeckDisplay').style.display = 'none';
+      }
+    } else {
+      card.querySelector('.card-count').textContent = sideGroups[si].count;
+    }
+
+    updateSideDeckCount();
+  });
+}
+
+function updateSideDeckCount() {
+  const total = sideGroups.reduce((s, g) => s + g.count, 0);
+  document.getElementById('sideDeckCount').textContent = `(${total} cards)`;
 }
 
 // --- Pool Builder ---
@@ -481,7 +525,7 @@ export function serializeState() {
 
   const state = {
     d: deckGroups.filter(g => g.count > 0).map(g => [g.id, g.count]),
-    s: sideGroups.map(g => [g.id, g.count]),
+    s: sideGroups.filter(g => g.count > 0).map(g => [g.id, g.count]),
     p: pools.map(p => ({ n: p.name, m: [...p.memberGroupIndices] })),
     c: combos.map(c => ({
       n: c.name,
@@ -540,16 +584,7 @@ export async function deserializeState(hash) {
           type: card ? card.type : 'Unknown',
         };
       });
-      const sideSection = document.getElementById('sideDeckDisplay');
-      sideSection.style.display = '';
-      const total = state.s.reduce((s, [, c]) => s + c, 0);
-      document.getElementById('sideDeckCount').textContent = `(${total} cards)`;
-      document.getElementById('sideDeckGrid').innerHTML = sideGroups.map(g => `
-        <span class="deck-card" title="${escapeHtml(g.type)}">
-          <span class="card-count">${g.count}</span>
-          ${escapeHtml(g.name)}
-        </span>
-      `).join('');
+      renderSideDeckGrid();
     }
 
     // Wire deck grid click handler
