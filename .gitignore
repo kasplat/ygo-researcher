@@ -1,5 +1,6 @@
 node_modules/
 .context/
-.claude/
+.claude/logs/
+.claude/projects/
 dev-server.js
 .dev.vars
