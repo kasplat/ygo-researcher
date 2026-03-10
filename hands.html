@@ -60,6 +60,14 @@
       <div id="comboList"></div>
     </section>
 
+    <!-- Matchup builder (hidden until import) -->
+    <section id="matchupBuilder" style="display:none">
+      <h2>Matchups <small class="info-text">(optional — see post-siding odds)</small></h2>
+      <p class="info-text">Define matchups to see how siding changes your combo consistency. Each swap removes a card from your main deck and adds one from your side deck.</p>
+      <button id="addMatchupBtn" class="outline">+ Add Matchup</button>
+      <div id="matchupList"></div>
+    </section>
+
     <!-- Results (hidden until combos defined) -->
     <section id="resultsSection" style="display:none">
       <h2>Results</h2>
@@ -81,6 +89,7 @@
           <div id="perComboResults6"></div>
         </div>
       </div>
+      <div id="matchupResults"></div>
       <div class="share-link-row">
         <button id="shareLinkBtn" class="outline">Copy Share Link</button>
         <small id="shareLinkFeedback"></small>

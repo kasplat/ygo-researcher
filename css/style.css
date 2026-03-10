@@ -450,6 +450,10 @@ details {
   background: rgba(66, 133, 244, 0.15);
 }
 
+.combo-req.side-req {
+  background: rgba(156, 39, 176, 0.15);
+}
+
 .pool-label {
   font-size: 0.7rem;
   opacity: 0.7;
@@ -613,6 +617,155 @@ details {
 .per-combo-table .combo-prob {
   font-weight: bold;
   text-align: right;
+}
+
+/* Matchup builder */
+.matchup-panel {
+  background: var(--pico-card-background-color);
+  border-radius: var(--pico-border-radius);
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border: 1px solid rgba(156, 39, 176, 0.4);
+}
+
+.matchup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.matchup-header input {
+  margin: 0;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.9rem;
+  max-width: 200px;
+}
+
+.remove-matchup {
+  margin: 0;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.8rem;
+  width: auto;
+  height: auto;
+}
+
+.matchup-swaps {
+  margin-bottom: 0.5rem;
+}
+
+.swap-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0;
+  font-size: 0.85rem;
+}
+
+.swap-label {
+  opacity: 0.6;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+.swap-count-select {
+  margin: 0;
+  padding: 0.1rem 0.3rem;
+  font-size: 0.8rem;
+  width: 3.5rem;
+  height: auto;
+}
+
+.swap-card {
+  padding: 0.15rem 0.4rem;
+  background: rgba(244, 67, 54, 0.15);
+  border-radius: var(--pico-border-radius);
+  font-size: 0.85rem;
+}
+
+.swap-card.side-card {
+  background: rgba(76, 175, 80, 0.15);
+}
+
+.swap-arrow {
+  opacity: 0.5;
+  font-size: 0.9rem;
+}
+
+.swap-add-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.swap-add-row select {
+  margin: 0;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.8rem;
+  width: auto;
+  height: auto;
+  max-width: 200px;
+}
+
+.swap-add-row button {
+  margin: 0;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.8rem;
+  width: auto;
+  height: auto;
+}
+
+.remove-swap {
+  cursor: pointer;
+  opacity: 0.6;
+  font-size: 1rem;
+  line-height: 1;
+  background: none;
+  border: none;
+  color: inherit;
+  padding: 0 0.2rem;
+  margin: 0;
+  width: auto;
+}
+
+.remove-swap:hover {
+  opacity: 1;
+}
+
+/* Matchup comparison table */
+.matchup-table-title {
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  font-size: 1rem;
+  text-align: center;
+  opacity: 0.8;
+}
+
+.matchup-comparison-table {
+  width: 100%;
+  text-align: center;
+  margin: 0 auto;
+}
+
+.matchup-comparison-table th {
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
+.matchup-comparison-table td {
+  padding: 0.5rem 0.8rem;
+  font-size: 0.9rem;
+}
+
+.delta-positive {
+  color: rgba(76, 175, 80, 0.9);
+  font-size: 0.8rem;
+}
+
+.delta-negative {
+  color: rgba(244, 67, 54, 0.9);
+  font-size: 0.8rem;
 }
 
 /* Import warnings */
