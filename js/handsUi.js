@@ -228,7 +228,11 @@ function isSideOnly(groupIndex) {
 }
 
 function cardLabel(g) {
-  if (g.count === 0) return `${escapeHtml(g.name)} (side)`;
+  if (g.count === 0) {
+    const sg = sideGroups.find(s => s.id === g.id);
+    const sideCount = sg ? sg.count : 0;
+    return `${escapeHtml(g.name)} (${sideCount}x)`;
+  }
   return `${escapeHtml(g.name)} (${g.count}x)`;
 }
 
