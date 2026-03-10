@@ -232,6 +232,29 @@ function cardLabel(g) {
   return `${escapeHtml(g.name)} (${g.count}x)`;
 }
 
+function sortedIndices(indices) {
+  return [...indices].sort((a, b) => deckGroups[a].name.localeCompare(deckGroups[b].name));
+}
+
+function mainDeckOptions(filterFn) {
+  const indices = deckGroups.map((g, i) => i).filter(i => deckGroups[i].count > 0 && (!filterFn || filterFn(i)));
+  return sortedIndices(indices).map(i => `<option value="${i}">${cardLabel(deckGroups[i])}</option>`).join('');
+}
+
+function sideDeckOptions(filterFn) {
+  const indices = deckGroups.map((g, i) => i).filter(i => isSideOnly(i) && (!filterFn || filterFn(i)));
+  return sortedIndices(indices).map(i => `<option value="${i}">${cardLabel(deckGroups[i])}</option>`).join('');
+}
+
+function cardOptgroups(filterFn) {
+  const main = mainDeckOptions(filterFn);
+  const side = sideDeckOptions(filterFn);
+  let html = '';
+  if (main) html += `<optgroup label="Main Deck">${main}</optgroup>`;
+  if (side) html += `<optgroup label="Side Deck">${side}</optgroup>`;
+  return html;
+}
+
 // --- Pool Builder ---
 
 function addPool() {
@@ -270,10 +293,7 @@ function renderPool(pool) {
     </div>
     <select class="pool-add-card" data-pool-id="${pool.id}">
       <option value="">+ Add card...</option>
-      ${deckGroups.map((g, i) =>
-        pool.memberGroupIndices.includes(i) || (g.count === 0 && !isSideOnly(i)) ? '' :
-        `<option value="${i}">${cardLabel(g)}</option>`
-      ).join('')}
+      ${cardOptgroups(i => !pool.memberGroupIndices.includes(i))}
     </select>
   `;
 
@@ -402,9 +422,7 @@ function renderCombo(combo) {
           ${activePools.map(p => `<option value="pool:${p.id}">${escapeHtml(p.name)} (${getPoolTotalCount(p)} cards)</option>`).join('')}
         </optgroup>
       ` : ''}
-      <optgroup label="Cards">
-        ${deckGroups.map((g, i) => (g.count > 0 || isSideOnly(i)) ? `<option value="${i}">${cardLabel(g)}</option>` : '').join('')}
-      </optgroup>
+      ${cardOptgroups()}
     </select>
   `;
 
@@ -520,17 +538,14 @@ function renderMatchup(matchup) {
     <div class="swap-add-row">
       <select class="swap-out-select" data-matchup-id="${matchup.id}">
         <option value="">Card out...</option>
-        ${deckGroups.map((g, i) => g.count > 0 ? `<option value="${i}">${escapeHtml(g.name)} (${g.count}x)</option>` : '').join('')}
+        ${mainDeckOptions()}
       </select>
       <span class="swap-arrow">&rarr;</span>
       <select class="swap-in-select" data-matchup-id="${matchup.id}">
         <option value="">Card in...</option>
-        ${sideGroups.map(sg => {
-          const gi = sideGroupIndexMap.get(sg.id);
-          return sg.count > 0 && gi !== undefined
-            ? `<option value="${gi}">${escapeHtml(sg.name)} (${sg.count}x)</option>`
-            : '';
-        }).join('')}
+        ${sortedIndices(sideGroups.map(sg => sideGroupIndexMap.get(sg.id)).filter(gi => gi !== undefined && sideGroups.find(sg => sg.id === deckGroups[gi].id)?.count > 0))
+          .map(gi => `<option value="${gi}">${escapeHtml(deckGroups[gi].name)} (${sideGroups.find(sg => sg.id === deckGroups[gi].id).count}x)</option>`)
+          .join('')}
       </select>
       <button class="add-swap-btn outline" data-matchup-id="${matchup.id}">+ Swap</button>
     </div>
