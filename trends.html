@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YGO Meta Trends</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main class="container">
+    <!-- Cross-page nav -->
+    <nav class="page-nav">
+      <a href="index.html">Meta Analyzer</a>
+      <a href="trends.html" class="active">Trends</a>
+      <a href="hands.html">Hand Calculator</a>
+    </nav>
+
+    <header>
+      <h1>Meta Trends</h1>
+      <p>Track card categories across the meta — hand trap usage, go-second techs, and more</p>
+    </header>
+
+    <!-- Controls -->
+    <section id="controls">
+      <div class="grid">
+        <div>
+          <label for="timeRange">Time Range</label>
+          <select id="timeRange">
+            <option value="7">Last Week</option>
+            <option value="14" selected>Last 2 Weeks</option>
+            <option value="30">Last Month</option>
+          </select>
+        </div>
+        <div>
+          <label>&nbsp;</label>
+          <button id="analyzeBtn">Analyze Trends</button>
+        </div>
+      </div>
+      <progress id="loadingBar" value="0" max="100" style="display:none"></progress>
+      <small id="loadingStatus" style="display:none"></small>
+    </section>
+
+    <!-- Error display -->
+    <div id="errorDisplay" style="display:none" role="alert"></div>
+
+    <!-- Results -->
+    <section id="results" style="display:none">
+
+      <!-- Summary -->
+      <div id="summary" class="summary-bar"></div>
+
+      <!-- Category tabs -->
+      <div id="categoryTabs" role="group" style="margin-bottom:0.5rem"></div>
+
+      <!-- Card chips for active category -->
+      <div id="cardChips" style="margin-bottom:1rem"></div>
+
+      <!-- Reset button -->
+      <small><button id="resetCategories" class="outline secondary" style="padding:0.2rem 0.6rem;font-size:0.75rem;width:auto;margin-bottom:1rem">Reset categories</button></small>
+
+      <!-- Frequency Heatmap -->
+      <details open>
+        <summary><h2>Frequency Heatmap</h2></summary>
+        <div id="heatmapSection"></div>
+      </details>
+
+      <!-- Opening Hand Distribution -->
+      <details open>
+        <summary><h2>Opening Hand Probabilities</h2></summary>
+        <div id="distributionSection"></div>
+      </details>
+
+    </section>
+  </main>
+
+  <script type="module" src="js/trendsApp.js"></script>
+</body>
+</html>
