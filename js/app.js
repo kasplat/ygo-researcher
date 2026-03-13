@@ -7,6 +7,7 @@ import { fetchDecks, fetchArchetypes } from './api.js';
 import { parseRelativeDate } from './dateParser.js';
 import { initClassifier, classifyDeck } from './archetypeClassifier.js';
 import { analyzeDecks } from './analyzer.js';
+import { setCachedDecks } from './deckCache.js';
 import * as ui from './ui.js';
 
 // Set up global card link click delegation
@@ -44,6 +45,9 @@ document.getElementById('analyzeBtn').addEventListener('click', async () => {
       deck.parsedDate = parseRelativeDate(deck.submit_date);
       deck.archetype = classifyDeck(deck.deck_name);
     }
+
+    // Cache classified decks for Trends page
+    setCachedDecks(rangeDays, decks);
 
     // Step 4: Run statistical analysis
     ui.updateStatus('Analyzing card frequencies...');
